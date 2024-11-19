@@ -70,6 +70,39 @@ class ConfigLoader:
             counter += 1
             aws_configs.append(self.load_aws_config(config_name))
         return aws_configs
+    def generate_peer_config(self, config_name):
+        aws_config = self.load_aws_config(config_name)
+        peer_wg_port = "51821"
+        interface_wg_public_key = self.api_config['interfaceWgPublicKey']
+        peer_wg_private_key = self.api_config['peerWgPrivateKey']
+        order = aws_config['order']
+        config_path=f'/opt/cloud-iprotate/profile_config/iprotate_{order}_{config_name}'
+        interface_ip = f'10.0.{order}.2/32'
+        peer_ip = f'10.0.{order}.1/32'
+        post_up_string = (
+            "ufw route allow in on wg0 out on eth0; " + 
+            "iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE"
+        )
+        pre_down_string = (
+            "ufw route delete allow in on wg0 out on eth0; " + 
+            "iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE"
+        )
+        peer_config = configparser.ConfigParser()
+        peer_config.add_section('Interface')
+        peer_config.add_section('Peer')
+        peer_config.set('Interface', 'PrivateKey', peer_wg_private_key)
+        peer_config.set('Interface', 'ListenPort', peer_wg_port)
+        peer_config.set('Interface', 'Address', peer_ip)
+        peer_config.set('Interface', 'PostUp', post_up_string)
+        peer_config.set('Interface', 'PreDown', pre_down_string)
+        peer_config.set('Peer', 'PublicKey', interface_wg_public_key)
+        peer_config.set('Peer', 'AllowedIPs', interface_ip)
+        #make sure directory exists
+        os.makedirs(config_path, exist_ok=True)
+        peer_config.write(open(f'{config_path}/wg0.conf', 'w'))
+        #read the file and return the content
+        with open(f'{config_path}/wg0.conf', 'r') as file:
+            return file.read()
     def generate_profile_config(self, config_name, newip):
         peer_wg_port = "51821"
         aws_config = self.load_aws_config(config_name)

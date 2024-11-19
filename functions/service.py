@@ -18,7 +18,7 @@ class ServiceManager:
         print(f"DBUS_SYSTEM_BUS_ADDRESS: {system_bus_address}")
     else:
         print("DBUS_SYSTEM_BUS_ADDRESS is not set. Using default path.")
-    os.environ['DBUS_SYSTEM_BUS_ADDRESS'] = 'unix:path=/var/run/dbus'
+    os.environ['DBUS_SYSTEM_BUS_ADDRESS'] = 'unix:path=/var/run/dbus/system_bus_socket'
     bus = dbus.SystemBus()
     systemd = bus.get_object('org.freedesktop.systemd1', '/org/freedesktop/systemd1')
     manager = dbus.Interface(systemd, 'org.freedesktop.systemd1.Manager')
@@ -31,6 +31,6 @@ class ServiceManager:
       if service.startswith('iprotate@'):
         print(f"Resetting {service}")
 
-
-service = ServiceManager('iprotate_2_aws2')
-service.reset_all()
+if __name__ == '__main__':
+  service = ServiceManager('iprotate_2_aws2')
+  service.reset_all()

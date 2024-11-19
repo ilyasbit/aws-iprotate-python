@@ -8,7 +8,7 @@
       "name": "Python Debugger: Module",
       "type": "debugpy",
       "request": "launch",
-      "module": "functions.aws",
+      "module": "test.changeip",
       "console": "integratedTerminal",
       "justMyCode": true
     }

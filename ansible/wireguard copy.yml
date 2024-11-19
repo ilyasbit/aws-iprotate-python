@@ -4,60 +4,25 @@
   become: true
 
   tasks:
-    - name: Check if unattended-upgrades is installed
-      command: dpkg -l | grep unattended-upgrades
-      register: unattended_upgrades_installed
-      ignore_errors: true
-      changed_when: false
-
     - name: remove unattended-upgrades
       apt:
         name: unattended-upgrades
         state: absent
         update_cache: no
-      when: unattended_upgrades_installed.rc == 0
-
-    - name: Check if unattended-upgrades is enabled
-      systemd:
-        name: unattended-upgrades
-        enabled: yes
-      register: unattended_upgrades_enabled
-      ignore_errors: true
-      changed_when: false
-
     - name: Disable unattended-upgrades
       systemd:
         name: unattended-upgrades
         enabled: no
         state: stopped
-      when: unattended_upgrades_enabled.changed
-
-    - name: Check if WireGuard is installed
-      tags: wireguard
-      command: dpkg -l | grep wireguard
-      register: wireguard_installed
-
-      ignore_errors: true
-      changed_when: false
-
     - name: Install WireGuard
-      tags: wireguard
       apt:
         name: wireguard
         state: present
         update_cache: yes
-      when: wireguard_installed.rc != 0
-
-    - name: Check if UFW is enabled
-      command: ufw status
-      register: ufw_status
-      changed_when: false
-
     - name: Allow everything and enable UFW
       community.general.ufw:
         state: enabled
         policy: allow
-      when: "'inactive' in ufw_status.stdout"
     - name: Enable IP forwarding
       sysctl:
         name: net.ipv4.ip_forward
@@ -65,14 +30,7 @@
         state: present
         sysctl_set: yes
         reload: yes
-    - name: Stop WireGuard wg0
-      tags: set-wg
-      systemd:
-        name: wg-quick@wg0
-        state: stopped
-        enabled: yes
     - name: set WG0 interface
-      tags: set-wg
       ansible.builtin.copy:
         dest: /etc/wireguard/wg0.conf
         content: |
@@ -93,7 +51,6 @@
         group: root
         mode: "0622"
     - name: Restart WireGuard wg0
-      tags: set-wg
       systemd:
         name: wg-quick@wg0
         state: restarted

@@ -4,8 +4,8 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/opt/cloud-iprotate/profile_config/start_iprotate.sh %i
-ExecStop=/opt/cloud-iprotate/profile_config/stop_iprotate.sh %i
+ExecStart=/opt/cloud-iprotate/start_iprotate.sh %i
+ExecStop=/opt/cloud-iprotate/stop_iprotate.sh %i
 TimeoutStopSec=2
 StandardOutput=journal
 StandardError=journal

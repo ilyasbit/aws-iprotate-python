@@ -144,13 +144,14 @@ class Aws:
     def launch_instance(self):
         instances_list = self.ec2.describe_instances()
         for instance in instances_list['Reservations']:
-            for tag in instance['Instances'][0]['Tags']:
-                if tag['Key'] == 'role' and tag['Value'] == 'iprotate' and instance['Instances'][0]['State']['Name'] != 'terminated' and instance['Instances'][0]['State']['Name'] != 'shutting-down' and instance['Instances'][0]['State']['Name'] != 'terminating':
-                    instance_id = instance['Instances'][0]['InstanceId']
-                    self.config.set_value(self.config_name, 'instanceId', instance_id)
-                    self.config.write_changes()
-                    self.aws_config = self.config.load_aws_config(self.config_name)
-                    return instance['Instances'][0]
+            if hasattr(instance['Instances'][0], 'Tags'):
+                for tag in instance['Instances'][0]['Tags']:
+                    if tag['Key'] == 'role' and tag['Value'] == 'iprotate' and instance['Instances'][0]['State']['Name'] != 'terminated' and instance['Instances'][0]['State']['Name'] != 'shutting-down' and instance['Instances'][0]['State']['Name'] != 'terminating':
+                        instance_id = instance['Instances'][0]['InstanceId']
+                        self.config.set_value(self.config_name, 'instanceId', instance_id)
+                        self.config.write_changes()
+                        self.aws_config = self.config.load_aws_config(self.config_name)
+                        return instance['Instances'][0]
         self.create_security_group()
         instance_type = self.get_instance_type_free_tier().get('InstanceType')
         try:
@@ -195,17 +196,24 @@ class Aws:
         return self.ec2.describe_instances(InstanceIds=[new_instance_id])
     def terminate_instance(self):
         instances_list = self.ec2.describe_instances()
+        if instances_list['Reservations'] == None:
+            return
         for instance in instances_list['Reservations']:
-            for tag in instance['Instances'][0]['Tags']:
-                if tag['Key'] == 'role' and tag['Value'] == 'iprotate':
-                    instance_id = instance['Instances'][0]['InstanceId']
-                    self.ec2.terminate_instances(InstanceIds=[instance_id])
-                    instance_detail = {
+            if hasattr(instance['Instances'][0], 'Tags'):
+                for tag in instance['Instances'][0]['Tags']:
+                    if tag['Key'] == 'role' and tag['Value'] == 'iprotate':
+                        instance_id = instance['Instances'][0]['InstanceId']
+                        self.ec2.terminate_instances(InstanceIds=[instance_id])
+                        instance_detail = {
                         'InstanceId': instance_id,
                         'State': 'terminating'
-                    }
+                        }
         self.config.set_value(self.config_name, 'instanceId', '')
         self.config.write_changes()
+        instance_detail = {
+            'InstanceId': '',
+            'State': 'terminated'
+        }
         return instance_detail
     def get_instance_type_free_tier(self):
         instance_list = self.ec2.describe_instance_types(
@@ -243,6 +251,7 @@ class Aws:
         return None
 
     def run_ansible_playbook(self, playbook_path):
+    
         for i in range(10):
             try:
                 ssh = paramiko.SSHClient()
@@ -260,6 +269,7 @@ class Aws:
             'peerWgPublicKey': self.config.api_config['peerWgPublicKey'],
             'order': self.aws_config['order']
         }
+        
         inventory = {
             'all': {
                 'hosts': {
@@ -274,7 +284,8 @@ class Aws:
             r = ansible_runner.run(private_data_dir='.',
                 playbook=playbook_path,
                 inventory=inventory,
-                envvars=envvars)
+                envvars=envvars,
+                tags='set-wg')
         except Exception as ansibleError:
             raise Exception(f"Error running ansible playbook: {ansibleError}")
 
@@ -358,12 +369,12 @@ class Aws:
         new_ip = self.get_instance_address()
         return {"old_ip": old_ip, "new_ip": new_ip}
 
-
-aws1 = Aws('aws2')
-aws1.login()
-new_instance = aws1.launch_instance()
-setup_playbook = '/opt/cloud-iprotate/ansible/wireguard.yml'
-#aws1.run_ansible_playbook(setup_playbook)
-change_ip = aws1.get_new_ip()
-print(change_ip['new_ip'])
-aws1.config.generate_profile_config('aws2', change_ip['new_ip'])
+if __name__ == '__main__':
+    aws1 = Aws('aws2')
+    aws1.login()
+    new_instance = aws1.launch_instance()
+    setup_playbook = '/opt/cloud-iprotate/ansible/wireguard.yml'
+    #aws1.run_ansible_playbook(setup_playbook)
+    change_ip = aws1.get_new_ip()
+    print(change_ip['new_ip'])
+    aws1.config.generate_profile_config('aws2', change_ip['new_ip'])
