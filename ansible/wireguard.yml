@@ -1,0 +1,57 @@
+---
+- name: Example Playbook
+  hosts: all
+  become: true
+
+  tasks:
+    - name: remove unattended-upgrades
+      apt:
+        name: unattended-upgrades
+        state: absent
+        update_cache: no
+    - name: Disable unattended-upgrades
+      systemd:
+        name: unattended-upgrades
+        enabled: no
+        state: stopped
+    - name: Install WireGuard
+      apt:
+        name: wireguard
+        state: present
+        update_cache: yes
+    - name: Allow everything and enable UFW
+      community.general.ufw:
+        state: enabled
+        policy: allow
+    - name: Enable IP forwarding
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: 1
+        state: present
+        sysctl_set: yes
+        reload: yes
+    - name: set WG0 interface
+      ansible.builtin.copy:
+        dest: /etc/wireguard/wg0.conf
+        content: |
+          [Interface]
+          Address = 10.0.{{ lookup('env', 'order') }}.1/32
+          PrivateKey = {{ lookup('env', 'peerWgPrivateKey') }}
+          ListenPort = 51821
+          PostUp = ufw route allow in on wg0 out on eth0
+          PostUp = iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE
+          PreDown = ufw route delete allow in on wg0 out on eth0
+          PreDown = iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+
+
+          [Peer]
+          PublicKey = {{ lookup('env', 'interfaceWgPublicKey') }}
+          AllowedIPs = 10.0.{{ lookup('env', 'order') }}.2/32
+        owner: root
+        group: root
+        mode: "0622"
+    - name: Start WireGuard
+      systemd:
+        name: wg-quick@wg0
+        enabled: yes
+        state: started

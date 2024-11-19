@@ -1,0 +1,14 @@
+[Unit]
+Description=IP Rotation Service for %i (WireGuard + 3proxy)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/cloud-iprotate/profile_config/start_iprotate.sh %i
+ExecStop=/opt/cloud-iprotate/profile_config/stop_iprotate.sh %i
+TimeoutStopSec=2
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

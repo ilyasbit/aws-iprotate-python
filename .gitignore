@@ -1,8 +1,15 @@
+#custom ignore
+*/*config.conf
+config.conf
+todos.txt
+artifacts
+inventory
+profile_config
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-
+test
 # C extensions
 *.so
 

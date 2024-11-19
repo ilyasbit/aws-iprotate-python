@@ -1,0 +1,13 @@
+[Unit]
+Description=Persistent SSH Tunnel to from port 9092 on this server to port 9090 on external server (for encrypted traffic)
+After=network.target
+
+[Service]
+EnviromentFile=/etc/environment
+Restart=on-failure
+RestartSec=5
+ExecStart=/usr/bin/ssh -NTC -o ServerAliveInterval=60 -o ExitOnForwardFailure=yes -D 127.0.0.1:${TUNNEL_PORT} ${SSH_USER}@${SSH_HOST} -i ${SSH_KEY_PATH} -v
+
+[Install]
+WantedBy=multi-user.target
+Alias=iprotate_ssh_tunnel.service
