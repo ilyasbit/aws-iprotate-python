@@ -81,6 +81,8 @@ class ConfigLoader:
         peer_ip = f'10.0.{order}.1/32'
         post_up_string = (
             "ufw route allow in on wg0 out on eth0; " + 
+            "ufw default allow incoming" + "; " +
+            "sysctl -w net.ipv4.ip_forward=1" + "; " +
             "iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE"
         )
         pre_down_string = (
@@ -128,7 +130,6 @@ class ConfigLoader:
             "wg set " + interface_name + " peer " + peer_wg_public_key + " allowed-ips " + peer_ip
         )
         post_down_string = (
-            "ip route del default table " + order + "; " +
             "ip rule del table " + order
         )
         wg_config = configparser.ConfigParser()

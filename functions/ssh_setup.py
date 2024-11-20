@@ -1,5 +1,8 @@
 import paramiko
 from functions.main import ConfigLoader
+from functions.aws import Aws
+from functions.service import ServiceManager
+import time
 
 class SSHSetup:
     def __init__(self, **kwargs):
@@ -10,8 +13,18 @@ class SSHSetup:
         self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     def connect(self):
-        self.ssh.connect(self.host, username=self.username, key_filename=self.key_path)
-    
+        # try up to 10 times to connect to the remote host with timeout 1 second
+        for i in range(10):
+            try:
+                self.ssh.connect(self.host, username=self.username, key_filename=self.key_path)
+                break
+            except Exception as e:
+                print(f'Failed to connect to {self.host} with error: {e}')
+                time.sleep(1)
+            if i == 9:
+                print(f'Failed to connect to {self.host} after 10 retries')
+                return False
+        return True
     def is_file_exists(self, remote_path):
         stdin, stdout, stderr = self.ssh.exec_command(f'sudo test -f {remote_path} && echo "File exists" || echo "File does not exist"')
         output = stdout.read().decode().strip()
@@ -49,6 +62,13 @@ class SSHSetup:
         stdin, stdout, stderr = self.ssh.exec_command(f'sudo systemctl stop {service_name}')
         output = stdout.read().decode().strip()
         return output
+    def ufw_allow_all(self):
+        self.ssh.exec_command('sudo ufw default allow incoming').read().decode().strip()
+        self.ssh.exec_command('sudo ufw default allow outgoing').read().decode().strip()
+        #write the changes to the firewall
+
+    def allow_ipv4_forwarding(self):
+        stdin, stdout, stderr = self.ssh.exec_command(f'echo "net.ipv4.ip_forward = 1" | sudo tee /etc/sysctl.d/99-sysctl.conf && sudo sysctl -p')
     def start_service(self, service_name):
         stdin, stdout, stderr = self.ssh.exec_command(f'sudo systemctl start {service_name}')
         output = stdout.read().decode().strip()
@@ -77,31 +97,59 @@ class SSHSetup:
     def close(self):
         self.ssh.close()
 
-host = '13.229.218.255'
-username = 'ubuntu'
-key_path = '/root/.ssh/id_rsa'
+class SetupHost:
+    def __init__(self, **kwargs):
+        self.host = kwargs.get('host')
+        self.username = kwargs.get('username')
+        self.key_path = kwargs.get('key_path')
+        self.local_path = kwargs.get('local_path')
+        self.remote_path = kwargs.get('remote_path')
 
-ssh = SSHSetup(host=host, username=username, key_path=key_path)
-ssh.connect()
-print(ssh.remove_package('unattended-upgrades'))
-print(ssh.install_package('wireguard'))
-print(ssh.is_file_exists('/etc/wireguard/wg0.conf'))
-wgonremote = ssh.read_file('/etc/wireguard/wg0.conf')
-peer_config = ConfigLoader()
-peer_config.load_api_config()
-peer_config = peer_config.generate_peer_config('aws1')
-#remove white space at the end of the line before comparing
-peer_config = peer_config.rstrip()
+    def login(self):
+        self.ssh = SSHSetup(host=self.host, username=self.username, key_path=self.key_path)
+        self.ssh.connect()
 
-#compare the output of the two print statements
-if wgonremote == peer_config:
-    print('Both configurations are the same')
-else:
-    ssh.copy_to_host(local_path='/opt/cloud-iprotate/profile_config/iprotate_1_aws1/wg0.conf', remote_path='/etc/wireguard/wg0.conf')
-    print('Configuration copied to remote host')
-    wgonremote = ssh.read_file('/etc/wireguard/wg0.conf')
-    if wgonremote == peer_config:
-        print('Both configurations are the same')
-    else:
-        print('Configuration not copied to remote host')
+    def setup(self):
+        if not self.ssh:
+            return False
+        self.ssh.remove_package('unattended-upgrades')
+        self.ssh.install_package('wireguard')
+        self.ssh.allow_ipv4_forwarding()
+        self.ssh.copy_to_host(local_path=self.local_path, remote_path=self.remote_path)
+        self.ssh.enable_service('wg-quick@wg0')
+        self.ssh.close()
+
+    def close(self):
+        if not self.ssh:
+            return False
+        self.ssh = SSHSetup(host=self.host, username=self.username, key_path=self.key_path)
+        self.ssh.close()
+
+
+if __name__ == '__main__':
+    username = 'ubuntu'
+    key_path = '/root/.ssh/id_rsa'
+    config_name = 'aws1'
+    aws = Aws(config_name)
+    aws.login()
+    aws.terminate_instance()
+    aws.launch_instance()
+    print(aws.get_new_ip())
+    aws_ip = aws.get_instance_address()
+    print(aws_ip)
+    order = aws.aws_config['order']
+    # setup wireguard on remote host
+    remote_path = '/etc/wireguard/wg0.conf'
+    local_path = f'/opt/cloud-iprotate/profile_config/iprotate_{order}_{config_name}/wg0.conf' 
+    peer_config = ConfigLoader()
+    peer_config.load_api_config()
+    peer_config.generate_peer_config(config_name)
+    peer_config.generate_profile_config(config_name, aws_ip)
+    host = SetupHost(host=aws_ip, username=username, key_path=key_path, local_path=local_path, remote_path=remote_path)
+    host.login()
+    host.setup()
+    service = ServiceManager(f'iprotate_{order}_{config_name}')
+    service.stop()
+    service.restart_iprotate_service()
+
 

@@ -199,15 +199,8 @@ class Aws:
         if instances_list['Reservations'] == None:
             return
         for instance in instances_list['Reservations']:
-            if hasattr(instance['Instances'][0], 'Tags'):
-                for tag in instance['Instances'][0]['Tags']:
-                    if tag['Key'] == 'role' and tag['Value'] == 'iprotate':
                         instance_id = instance['Instances'][0]['InstanceId']
                         self.ec2.terminate_instances(InstanceIds=[instance_id])
-                        instance_detail = {
-                        'InstanceId': instance_id,
-                        'State': 'terminating'
-                        }
         self.config.set_value(self.config_name, 'instanceId', '')
         self.config.write_changes()
         instance_detail = {
@@ -370,11 +363,7 @@ class Aws:
         return {"old_ip": old_ip, "new_ip": new_ip}
 
 if __name__ == '__main__':
-    aws1 = Aws('aws2')
-    aws1.login()
-    new_instance = aws1.launch_instance()
-    setup_playbook = '/opt/cloud-iprotate/ansible/wireguard.yml'
-    #aws1.run_ansible_playbook(setup_playbook)
-    change_ip = aws1.get_new_ip()
-    print(change_ip['new_ip'])
-    aws1.config.generate_profile_config('aws2', change_ip['new_ip'])
+    config_name = 'aws1'
+    aws = Aws(config_name)
+    aws.login()
+    aws.terminate_instance()

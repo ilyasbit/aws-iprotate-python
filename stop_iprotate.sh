@@ -3,7 +3,7 @@
 config_name=$1
 
 echo "Stopping WireGuard interface $config_name"
-wg-quick down /opt/cloud-iprotate/profile_config/${config_name}/${config_name}.conf >/dev/null &>/dev/null 2>&1
+wg-quick down /opt/cloud-iprotate/profile_config/${config_name}/${config_name}.conf
 
 echo "Stopping 3proxy for $config_name"
 

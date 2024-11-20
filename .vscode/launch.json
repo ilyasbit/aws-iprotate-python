@@ -8,7 +8,7 @@
       "name": "Python Debugger: Module",
       "type": "debugpy",
       "request": "launch",
-      "module": "test.changeip",
+      "module": "functions.ssh_setup",
       "console": "integratedTerminal",
       "justMyCode": true
     }

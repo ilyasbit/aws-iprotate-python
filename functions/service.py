@@ -13,11 +13,6 @@ class ServiceManager:
   def start(self):
     return self.service.start()
   def reset_all(self):
-    system_bus_address = os.getenv('DBUS_SYSTEM_BUS_ADDRESS')
-    if system_bus_address:
-        print(f"DBUS_SYSTEM_BUS_ADDRESS: {system_bus_address}")
-    else:
-        print("DBUS_SYSTEM_BUS_ADDRESS is not set. Using default path.")
     os.environ['DBUS_SYSTEM_BUS_ADDRESS'] = 'unix:path=/var/run/dbus/system_bus_socket'
     bus = dbus.SystemBus()
     systemd = bus.get_object('org.freedesktop.systemd1', '/org/freedesktop/systemd1')
