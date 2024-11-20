@@ -178,8 +178,3 @@ class ConfigLoader:
         with open(f'profile_config/{interface_name}/proxy_{interface_name}.cfg', 'w') as file:
             file.write(proxy_config_string)
 
-if __name__ == '__main__':
-    config = ConfigLoader()
-    config.load_all_aws_config()
-    print(config.all_aws_configs)
-

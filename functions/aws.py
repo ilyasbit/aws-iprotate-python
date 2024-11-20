@@ -361,9 +361,3 @@ class Aws:
         self.allocate_and_associate_ip()
         new_ip = self.get_instance_address()
         return {"old_ip": old_ip, "new_ip": new_ip}
-
-if __name__ == '__main__':
-    config_name = 'aws1'
-    aws = Aws(config_name)
-    aws.login()
-    aws.terminate_instance()

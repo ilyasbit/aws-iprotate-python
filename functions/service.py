@@ -25,7 +25,3 @@ class ServiceManager:
     for service in running_services:
       if service.startswith('iprotate@'):
         print(f"Resetting {service}")
-
-if __name__ == '__main__':
-  service = ServiceManager('iprotate_2_aws2')
-  service.reset_all()
