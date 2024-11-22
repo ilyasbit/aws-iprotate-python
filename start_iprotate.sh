@@ -13,7 +13,14 @@ if [ -f /opt/cloud-iprotate/profile_config/${config_name}/log.txt ]; then
     mv /opt/cloud-iprotate/profile_config/${config_name}/log.txt.tmp /opt/cloud-iprotate/profile_config/${config_name}/log.txt
   fi
 fi
-wg-quick up /opt/cloud-iprotate/profile_config/${config_name}/${config_name}.conf
+
+running_wg=$(wg show $config_name 2>&1)
+if [ $? == 0 ]; then
+  wg syncconf $config_name <(wg-quick strip /opt/cloud-iprotate/profile_config/${config_name}/${config_name}.conf)
+else
+  wg-quick up /opt/cloud-iprotate/profile_config/${config_name}/${config_name}.conf
+fi
+
 touch /opt/cloud-iprotate/profile_config/${config_name}/log.txt
 echo "Starting 3proxy for $config_name"
 

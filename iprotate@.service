@@ -6,6 +6,7 @@ After=network.target
 Type=simple
 ExecStart=/opt/cloud-iprotate/start_iprotate.sh %i
 ExecStop=/opt/cloud-iprotate/stop_iprotate.sh %i
+ReloadExecReload=/opt/cloud-iprotate/reload_iprotate.sh %i
 TimeoutStopSec=2
 StandardOutput=journal
 StandardError=journal

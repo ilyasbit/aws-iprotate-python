@@ -3,6 +3,7 @@ from functions.main import ConfigLoader
 from functions.aws import Aws
 from functions.service import ServiceManager
 import time
+import os, time
 
 class SSHSetup:
     def __init__(self, **kwargs):
@@ -12,29 +13,32 @@ class SSHSetup:
         self.ssh = paramiko.SSHClient()
         self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-    def connect(self):
+    def connect(self, **kwargs):
         # try up to 10 times to connect to the remote host with timeout 1 second
-        for i in range(10):
+        tries = kwargs.get('tries', 3)
+        for i in range(tries):
             try:
-                self.ssh.connect(self.host, username=self.username, key_filename=self.key_path)
+                self.ssh.connect(self.host, username=self.username, key_filename=self.key_path, timeout=1.0)
                 break
             except Exception as e:
                 print(f'Failed to connect to {self.host} with error: {e}')
                 time.sleep(1)
-            if i == 9:
-                print(f'Failed to connect to {self.host} after 10 retries')
+            if i == tries - 1:
+                print("Failed to connect to " + self.host + " after " + str(tries) + " retries")
                 return False
+        if self.ssh.get_transport() is None:
+            return False
         return True
     def is_file_exists(self, remote_path):
         stdin, stdout, stderr = self.ssh.exec_command(f'sudo test -f {remote_path} && echo "File exists" || echo "File does not exist"')
         output = stdout.read().decode().strip()
         return output == "File exists"
-    def package_is_installed(self, package_name):
+    def is_package_installed(self, package_name):
         stdin, stdout, stderr = self.ssh.exec_command(f'sudo dpkg -l | grep {package_name}')
         output = stdout.read().decode().strip()
         return output != ''
     def install_package(self, package_name):
-        is_installed = self.package_is_installed(package_name)
+        is_installed = self.is_package_installed(package_name)
         if is_installed:
             return True
         stdin, stdout, stderr = self.ssh.exec_command(f'sudo apt update -y && sudo apt install {package_name} -y')
@@ -45,7 +49,7 @@ class SSHSetup:
         return True
     def remove_package(self, package_name):
         stdin, stdout, stderr = self.ssh.exec_command(f'sudo apt remove {package_name} -y && sudo apt autoremove -y && sudo apt purge {package_name} -y')
-        installed = self.package_is_installed(package_name)
+        installed = self.is_package_installed(package_name)
         output = stdout.read().decode().strip()
         if installed:
             return False
@@ -104,7 +108,6 @@ class SetupHost:
         self.key_path = kwargs.get('key_path')
         self.local_path = kwargs.get('local_path')
         self.remote_path = kwargs.get('remote_path')
-
     def login(self):
         self.ssh = SSHSetup(host=self.host, username=self.username, key_path=self.key_path)
         self.ssh.connect()
@@ -112,8 +115,10 @@ class SetupHost:
     def setup(self):
         if not self.ssh:
             return False
-        self.ssh.remove_package('unattended-upgrades')
-        self.ssh.install_package('wireguard')
+        if self.ssh.is_package_installed('unattended-upgrades'):
+            self.ssh.remove_package('unattended-upgrades')
+        if not self.ssh.is_package_installed('wireguard'):
+            self.ssh.install_package('wireguard')
         self.ssh.allow_ipv4_forwarding()
         self.ssh.copy_to_host(local_path=self.local_path, remote_path=self.remote_path)
         self.ssh.enable_service('wg-quick@wg0')
@@ -129,15 +134,16 @@ class SetupHost:
 if __name__ == '__main__':
     username = 'ubuntu'
     key_path = '/root/.ssh/id_rsa'
-    config_name = 'aws1'
+    config_name = 'aws2'
     aws = Aws(config_name)
     aws.login()
     aws.terminate_instance()
     aws.launch_instance()
-    print(aws.get_new_ip())
-    aws_ip = aws.get_instance_address()
+    aws_ip = aws.get_new_ip().get('new_ip')
     print(aws_ip)
+    #print(aws_ip)
     order = aws.aws_config['order']
+    peer_ip = f'10.0.{order}.1'
     # setup wireguard on remote host
     remote_path = '/etc/wireguard/wg0.conf'
     local_path = f'/opt/cloud-iprotate/profile_config/iprotate_{order}_{config_name}/wg0.conf' 
@@ -145,11 +151,19 @@ if __name__ == '__main__':
     peer_config.load_api_config()
     peer_config.generate_peer_config(config_name)
     peer_config.generate_profile_config(config_name, aws_ip)
-    host = SetupHost(host=aws_ip, username=username, key_path=key_path, local_path=local_path, remote_path=remote_path)
-    host.login()
-    host.setup()
     service = ServiceManager(f'iprotate_{order}_{config_name}')
-    service.stop()
+    wg_reload = service.wg_reload()
     service.restart_iprotate_service()
-
-
+    if wg_reload == False:
+        service.restart_iprotate_service()
+        peerconnect = SSHSetup(host=peer_ip, username=username, key_path=key_path)
+        if peerconnect.connect() == False:
+            host = SetupHost(host=aws_ip, username=username, key_path=key_path, local_path=local_path, remote_path=remote_path)
+            host.login()
+            host.setup()
+    peerconnect = SSHSetup(host=peer_ip, username=username, key_path=key_path)
+    if peerconnect.connect() == False:
+        host = SetupHost(host=aws_ip, username=username, key_path=key_path, local_path=local_path, remote_path=remote_path)
+        host.login()
+        host.setup()
+    

@@ -8,7 +8,7 @@
       "name": "Python Debugger: Module",
       "type": "debugpy",
       "request": "launch",
-      "module": "functions.ssh_setup",
+      "module": "test.test2",
       "console": "integratedTerminal",
       "justMyCode": true
     }

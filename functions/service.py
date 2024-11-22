@@ -8,6 +8,13 @@ class ServiceManager:
   def restart_iprotate_service(self):
     service = Service(f"iprotate@{self.service_name}")
     service.restart()
+  def wg_reload(self):
+    config_path = f'/opt/cloud-iprotate/profile_config/{self.service_name}/{self.service_name}.conf'
+    response = os.system(f'wg syncconf {self.service_name} <(wg-quick strip {config_path})')
+    exit_code = os.WEXITSTATUS(response)
+    if exit_code == 0:
+      return True
+    return False
   def stop(self):
     return self.service.stop()
   def start(self):
@@ -24,4 +31,12 @@ class ServiceManager:
     # Reset all running services with the name "iprotate@"
     for service in running_services:
       if service.startswith('iprotate@'):
-        print(f"Resetting {service}")
+        print(f"Stopping {service}")
+        self.service_name = service.split('@')[1].split('.')[0]
+        self.service = Service(f"iprotate@{self.service_name}")
+        self.stop()
+
+
+if __name__ == '__main__':
+  service = ServiceManager('')
+  service.reset_all()

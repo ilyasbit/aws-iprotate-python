@@ -19,7 +19,13 @@ class ConfigLoader:
     def write_changes(self):
         with open('config.conf', 'w') as file:
             self.config.write(file)    
-
+    def change_region(self, **kwargs):
+        config_name = kwargs.get('config_name')
+        new_region = kwargs.get('new_region')
+        aws_config = self.load_aws_config(config_name)
+        aws_config['region'] = new_region
+        self.set_value(config_name, 'region', new_region)
+        self.write_changes()
     def reload_config(self):
         self.config.read('config.conf')
         self.api_config = self.load_api_config()
