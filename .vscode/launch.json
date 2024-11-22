@@ -8,7 +8,7 @@
       "name": "Python Debugger: Module",
       "type": "debugpy",
       "request": "launch",
-      "module": "test.test2",
+      "module": "test.test",
       "console": "integratedTerminal",
       "justMyCode": true
     }

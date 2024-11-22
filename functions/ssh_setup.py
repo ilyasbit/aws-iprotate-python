@@ -15,10 +15,10 @@ class SSHSetup:
 
     def connect(self, **kwargs):
         # try up to 10 times to connect to the remote host with timeout 1 second
-        tries = kwargs.get('tries', 3)
+        tries = kwargs.get('tries', 10)
         for i in range(tries):
             try:
-                self.ssh.connect(self.host, username=self.username, key_filename=self.key_path, timeout=1.0)
+                self.ssh.connect(self.host, username=self.username, key_filename=self.key_path, timeout=2.0)
                 break
             except Exception as e:
                 print(f'Failed to connect to {self.host} with error: {e}')
@@ -140,8 +140,6 @@ if __name__ == '__main__':
     aws.terminate_instance()
     aws.launch_instance()
     aws_ip = aws.get_new_ip().get('new_ip')
-    print(aws_ip)
-    #print(aws_ip)
     order = aws.aws_config['order']
     peer_ip = f'10.0.{order}.1'
     # setup wireguard on remote host

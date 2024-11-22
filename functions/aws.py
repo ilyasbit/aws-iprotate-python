@@ -356,8 +356,16 @@ class Aws:
         self.disassociate_and_release_ip()
         return
     def get_new_ip(self):
-        old_ip = self.get_instance_address()
-        self.disassociate_and_release_ip()
-        self.allocate_and_associate_ip()
-        new_ip = self.get_instance_address()
+        if self.aws_config['instanceId'] != '':
+            print('Changing IP')
+            old_ip = self.get_instance_address()
+            self.disassociate_and_release_ip()
+            self.allocate_and_associate_ip()
+            new_ip = self.get_instance_address()
+        else:
+            print('Launching new instance')
+            old_ip = None
+            self.terminate_instance()
+            self.launch_instance()
+            new_ip = self.get_instance_address()
         return {"old_ip": old_ip, "new_ip": new_ip}

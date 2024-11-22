@@ -1,6 +1,5 @@
 import configparser
 from urllib.parse import urlparse, urlunparse, urlencode
-from pprint import pprint
 import os
 
 class ConfigLoader:
