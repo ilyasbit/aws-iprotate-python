@@ -3,7 +3,9 @@ from functions.main import ConfigLoader
 from functions.aws import Aws
 from functions.service import ServiceManager
 import time
-import os, time
+import colorlog
+logger = colorlog.getLogger()
+
 
 class SSHSetup:
     def __init__(self, **kwargs):
@@ -12,6 +14,7 @@ class SSHSetup:
         self.key_path = kwargs.get('key_path')
         self.ssh = paramiko.SSHClient()
         self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        self.change_eth_script_path = '/opt/cloud-iprotate/change_eth.sh'
 
     def connect(self, **kwargs):
         # try up to 10 times to connect to the remote host with timeout 1 second
@@ -21,10 +24,10 @@ class SSHSetup:
                 self.ssh.connect(self.host, username=self.username, key_filename=self.key_path, timeout=2.0)
                 break
             except Exception as e:
-                print(f'Failed to connect to {self.host} with error: {e}')
+                logger.warning(f"Failed to connect to {self.host} on try {i + 1}")
                 time.sleep(1)
             if i == tries - 1:
-                print("Failed to connect to " + self.host + " after " + str(tries) + " retries")
+                logger.warning("Failed to connect to " + self.host + " after " + str(tries) + " retries")
                 return False
         if self.ssh.get_transport() is None:
             return False
@@ -98,6 +101,10 @@ class SSHSetup:
         output = stdout.read().decode().strip()
         is_file_exists = self.is_file_exists(remote_path)
         return is_file_exists
+    def execute_script(self, script_path):
+        stdin, stdout, stderr = self.ssh.exec_command(f'sudo bash {script_path}')
+        output = stdout.read().decode().strip()
+        return output
     def close(self):
         self.ssh.close()
 
@@ -108,6 +115,7 @@ class SetupHost:
         self.key_path = kwargs.get('key_path')
         self.local_path = kwargs.get('local_path')
         self.remote_path = kwargs.get('remote_path')
+        self.change_eth_script_path = '/opt/cloud-iprotate/change_eth.sh'
     def login(self):
         self.ssh = SSHSetup(host=self.host, username=self.username, key_path=self.key_path)
         self.ssh.connect()
@@ -116,11 +124,17 @@ class SetupHost:
         if not self.ssh:
             return False
         if self.ssh.is_package_installed('unattended-upgrades'):
+            logger.info('Removing unattended-upgrades')
             self.ssh.remove_package('unattended-upgrades')
         if not self.ssh.is_package_installed('wireguard'):
+            logger.info('Installing wireguard')
             self.ssh.install_package('wireguard')
         self.ssh.allow_ipv4_forwarding()
+        logger.info('Copying wireguard config to remote host')
         self.ssh.copy_to_host(local_path=self.local_path, remote_path=self.remote_path)
+        logger.info('Enabling wireguard service')
+        self.ssh.copy_to_host(local_path=self.change_eth_script_path, remote_path='/tmp/change_eth.sh')
+        self.ssh.execute_script('/tmp/change_eth.sh')
         self.ssh.enable_service('wg-quick@wg0')
         self.ssh.close()
 
@@ -145,6 +159,7 @@ if __name__ == '__main__':
     # setup wireguard on remote host
     remote_path = '/etc/wireguard/wg0.conf'
     local_path = f'/opt/cloud-iprotate/profile_config/iprotate_{order}_{config_name}/wg0.conf' 
+    
     peer_config = ConfigLoader()
     peer_config.load_api_config()
     peer_config.generate_peer_config(config_name)
@@ -164,4 +179,3 @@ if __name__ == '__main__':
         host = SetupHost(host=aws_ip, username=username, key_path=key_path, local_path=local_path, remote_path=remote_path)
         host.login()
         host.setup()
-    

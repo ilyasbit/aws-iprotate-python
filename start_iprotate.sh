@@ -25,5 +25,6 @@ touch /opt/cloud-iprotate/profile_config/${config_name}/log.txt
 echo "Starting 3proxy for $config_name"
 
 3proxy /opt/cloud-iprotate/profile_config/${config_name}/proxy_${config_name}.cfg &>/dev/null &
-
+ssserver -c /opt/cloud-iprotate/profile_config/${config_name}/shadowsocks.json --outbound-bind-interface $config_name | tee -a /opt/cloud-iprotate/profile_config/${config_name}/log.txt &
+sslocal -c /opt/cloud-iprotate/profile_config/${config_name}/shadowsocks.json | tee -a /opt/cloud-iprotate/profile_config/${config_name}/log.txt &
 tail -n1 -f /opt/cloud-iprotate/profile_config/${config_name}/log.txt

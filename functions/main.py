@@ -1,6 +1,11 @@
 import configparser
 from urllib.parse import urlparse, urlunparse, urlencode
 import os
+import colorlog
+import json
+from filelock import FileLock
+logger = colorlog.getLogger()
+
 
 class ConfigLoader:
     def __init__(self):
@@ -8,6 +13,7 @@ class ConfigLoader:
         self.config.read('config.conf')
         self.api_config = self.load_api_config()
         self.all_aws_configs = self.load_all_aws_config()
+        self.ssBasePort = "3000"
         self.wgPortBase = "4000"
         self.socks5PortBase = "5000"
         self.httpPortBase = "6000"
@@ -15,29 +21,47 @@ class ConfigLoader:
     def set_value(self, section, key, value):
         self.config.set(section, key, value)
 
-    def write_changes(self):
-        with open('config.conf', 'w') as file:
-            self.config.write(file)    
+    def write_changes(self, config_name):
+        # Use a lock file to prevent race conditions
+        lock = FileLock("config.conf.lock")
+        with lock:
+            # Read the existing configuration file
+            temp_config = configparser.ConfigParser()
+            temp_config.read('config.conf')
+            
+            # Update the target section with new values
+            target_section = self.config[config_name]
+            if config_name not in temp_config:
+                temp_config[config_name] = {}
+            for key in target_section:
+                temp_config[config_name][key] = target_section[key]
+            
+            # Write the updated configuration back to the file
+            with open('config.conf', 'w') as file:
+                temp_config.write(file)
+
+
     def change_region(self, **kwargs):
         config_name = kwargs.get('config_name')
         new_region = kwargs.get('new_region')
         aws_config = self.load_aws_config(config_name)
         aws_config['region'] = new_region
         self.set_value(config_name, 'region', new_region)
-        self.write_changes()
+        self.write_changes(config_name)
     def reload_config(self):
         self.config.read('config.conf')
         self.api_config = self.load_api_config()
         self.all_aws_configs = self.load_all_aws_config()
     def load_api_config(self):
         return {
-            'key': self.config.get('api', 'apiHostName'),
+            'apikey': self.config.get('api', 'apikey'),
             'prefix': self.config.get('api', 'prefix'),
             'port': self.config.get('api', 'port'),
             'interfaceWgPrivateKey': self.config.get('api', 'interfacewgPrivateKey'),
             'interfaceWgPublicKey': self.config.get('api', 'interfacewgPublicKey'),
             'peerWgPublicKey': self.config.get('api', 'peerwgPublicKey'),
             'peerWgPrivateKey': self.config.get('api', 'peerwgPrivateKey'),
+            'publicip': self.config.get('api', 'publicip'),
             'sshKeyPath': self.config.get('api', 'sshKeyPath'),
             'apiHostName': self.config.get('api', 'apiHostName')
         }
@@ -46,6 +70,10 @@ class ConfigLoader:
             self.config.set(config_name, 'user', '')
         if not self.config.has_option(config_name, 'pass'):
             self.config.set(config_name, 'pass', '')
+        if not self.config.has_option(config_name, 'apikey'):
+            self.config.set(config_name, 'apikey', '')
+        if not self.config.has_option(config_name, 'whitelist'):
+            self.config.set(config_name, 'whitelist', '')
         return {
             'configName': config_name,
             'order': self.config.get(config_name, 'order'),
@@ -53,6 +81,8 @@ class ConfigLoader:
             'secretKey': self.config.get(config_name, 'secretKey'),
             'instanceId': self.config.get(config_name, 'instanceId'),
             'region': self.config.get(config_name, 'region'),
+            'apikey' : (self.config.get(config_name, 'apikey') or ""),
+            'whitelist': (self.config.get(config_name, 'whitelist') or ""),
             'user': (self.config.get(config_name, 'user') or ""),
             'pass': (self.config.get(config_name, 'pass') or "")
         }
@@ -110,6 +140,51 @@ class ConfigLoader:
         #read the file and return the content
         with open(f'{config_path}/wg0.conf', 'r') as file:
             return file.read()
+    def generate_shadowsocks_config(self, config_name):
+        ss_config = {}
+        user = self.config.get(config_name, 'user')
+        passwd = self.config.get(config_name, 'pass')
+        aws_config = self.load_aws_config(config_name)
+        order = aws_config['order']
+        profile_name = f'iprotate_{order}_{config_name}'
+        interface_wg_private_key = self.api_config['interfaceWgPrivateKey']
+        path = f'/opt/cloud-iprotate/profile_config/{profile_name}/shadowsocks.json'
+        ss_config['server'] = 'localhost'
+        ss_config['server_port'] = int(f'{self.ssBasePort}{order}')
+        ss_config['password'] = interface_wg_private_key
+        ss_config['method'] = 'aes-128-gcm'
+        ss_config['mode'] = 'tcp_and_udp'
+        ss_config['fast_open'] = True
+        ss_config['locals'] = []
+        ss_config['locals'] = []
+        local_port = int(f'{self.socks5PortBase}{order}')
+        ss_config['locals'].append({
+        'local_address': '0.0.0.0',
+        'local_port': int(local_port),
+        'mode': 'tcp_and_udp',
+        'protocol': 'socks',
+        })
+        
+        
+        if user and passwd:
+            auth_path = f'/opt/cloud-iprotate/profile_config/{profile_name}/auth.json'
+            ss_config['locals'][0]['socks5_auth_config_path'] = auth_path
+            auth_config = {
+                'password':{
+                    'users':[
+                        {
+                            'user_name': user,
+                            'password': passwd
+                        }
+                    ]
+                }
+            }
+            auth_config_json = json.dumps(auth_config)
+            with open(auth_path, 'w') as file:
+                file.write(auth_config_json)
+        ss_config_json = json.dumps(ss_config)
+        with open(path, 'w') as file:
+            file.write(ss_config_json)
     def generate_profile_config(self, config_name, newip):
         peer_wg_port = "51821"
         aws_config = self.load_aws_config(config_name)
@@ -172,14 +247,8 @@ class ConfigLoader:
         
         if user and passwd:
             proxy_config_string += f"users {user}:CL:{passwd}" + "\n"
-        
-        proxy_config_string += (
-            "socks -n -u -p" + socks5_port + " -i0.0.0.0" + " -e" + interface_ip.split("/", 1)[0] + "\n"
-        )
-        if user and passwd:
-            proxy_config_string += f"users {user}:CL:{passwd}" + "\n"
 
         os.makedirs(f'profile_config/{interface_name}', exist_ok=True)
         with open(f'profile_config/{interface_name}/proxy_{interface_name}.cfg', 'w') as file:
             file.write(proxy_config_string)
-
+        self.generate_shadowsocks_config(config_name)

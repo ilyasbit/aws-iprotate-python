@@ -1,6 +1,9 @@
 from systemd_service import Service
 import dbus
 import os
+import colorlog
+logger = colorlog.getLogger()
+
 class ServiceManager:
   def __init__(self, service_name):
     self.service_name = service_name

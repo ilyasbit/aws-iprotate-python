@@ -2,32 +2,16 @@ from functions.aws import Aws
 from functions.main import ConfigLoader
 from functions.service import ServiceManager
 from functions.ssh_setup import SetupHost
+from functions.connection import Socks5
 import time
+import colorlog
+logger = colorlog.getLogger()
 
 class RunTask:
   def __init__(self):
     self.config = ConfigLoader()
     self.key_path = self.config.api_config['sshKeyPath']
     self.username = 'ubuntu'
-  def dummy_change_ip(self, **kwargs):
-    print('Dummy start')
-    config_name = kwargs.get('config_name')
-    print(f'Changing IP for {config_name}')
-    time.sleep(12)
-    return {'status': 'success', 'data': {
-      'old_ip': '123',
-      'new_ip': '456'
-    }}
-  def dummy_change_region(self, **kwargs):
-    print('Dummy start')
-    config_name = kwargs.get('config_name')
-    new_region = kwargs.get('new_region')
-    print(f'Changing region for {config_name}, to {new_region}')
-    time.sleep(60)
-    return {'status': 'success', 'data': {
-      'old_region': 'us-east-1',
-      'new_region': new_region
-    }}
   def change_region(self, **kwargs):
     config = ConfigLoader()
     config_name = kwargs.get('config_name')
@@ -43,6 +27,7 @@ class RunTask:
     self.config.change_region(config_name=config_name, new_region=new_region)
     aws = Aws(config_name)
     aws.login()
+    logger.info(f'[{config_name}] Launching new instance in {new_region}')
     aws.launch_instance()
     aws_ip = aws.get_instance_address()
     order = aws.aws_config['order']
@@ -55,6 +40,24 @@ class RunTask:
     host.setup()
     service = ServiceManager(f'iprotate_{order}_{config_name}')
     service.restart_iprotate_service()
+    publicip = config.api_config['publicip']
+    proxy_port = int(f'5000{order}')
+    proxy_user = aws.aws_config['user']
+    proxy_pass = aws.aws_config['pass']
+    cconn = Socks5(proxy_host=publicip, proxy_port=proxy_port, proxy_user=proxy_user, proxy_pass=proxy_pass)
+    for i in range(5):
+      try:
+        newip = cconn.get_external_ip()
+        if newip == aws_ip:
+          logger.info(f'[{config_name}] socks5 proxy is ready with external ip: {newip}')
+          break
+        else:
+          time.sleep(1)
+          continue
+      except Exception as e:
+        logger.warning(e)
+        time.sleep(1)
+        continue
     return {'status': 'success', 'data': {
       'old_region': old_region,
       'new_region': new_region,
@@ -75,7 +78,29 @@ class RunTask:
     config.generate_peer_config(config_name)
     host.login()
     host.setup()
+    publicip = config.api_config['publicip']
     service = ServiceManager(f'iprotate_{order}_{config_name}')
     service.stop()
     service.restart_iprotate_service()
+    proxy_port = int(f'5000{order}')
+    proxy_user = aws.aws_config['user']
+    proxy_pass = aws.aws_config['pass']
+    cconn = Socks5(
+      proxy_host=publicip, 
+      proxy_port=proxy_port, 
+      proxy_user=proxy_user, 
+      proxy_pass=proxy_pass)
+    for i in range(5):
+      try:
+        newip = cconn.get_external_ip()
+        if newip == aws_ip:
+          logger.info(f'[{config_name}] socks5 proxy is ready with external ip: {newip}')
+          break
+        else:
+          time.sleep(1)
+          continue
+      except Exception as e:
+        logger.warning(e)
+        time.sleep(1)
+        continue
     return {'status': 'success', 'data': getnewip}

@@ -1,18 +1,28 @@
 import boto3
 from .main import ConfigLoader
-from pprint import pprint
 import paramiko
 import binascii
 import hashlib
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 import ansible_runner
+import colorlog
+logger = colorlog.getLogger()
 
 class Aws:
     def __init__(self, config_name):
         self.config = ConfigLoader()
         self.config_name = config_name
         self.aws_config = self.config.load_aws_config(config_name)
+        self.user_data = '''#cloud-config
+            network:
+            version: 2
+            ethernets:
+                eth0:
+                match:
+                    name: "en*"
+                set-name: eth0
+            '''
     def format_fingerprint(self, fingerprint):
         # Convert the byte string to a hexadecimal string
         hex_fingerprint = binascii.hexlify(fingerprint).decode('utf-8')
@@ -149,7 +159,7 @@ class Aws:
                     if tag['Key'] == 'role' and tag['Value'] == 'iprotate' and instance['Instances'][0]['State']['Name'] != 'terminated' and instance['Instances'][0]['State']['Name'] != 'shutting-down' and instance['Instances'][0]['State']['Name'] != 'terminating':
                         instance_id = instance['Instances'][0]['InstanceId']
                         self.config.set_value(self.config_name, 'instanceId', instance_id)
-                        self.config.write_changes()
+                        self.config.write_changes(self.config_name)
                         self.aws_config = self.config.load_aws_config(self.config_name)
                         return instance['Instances'][0]
         self.create_security_group()
@@ -167,6 +177,7 @@ class Aws:
             ImageId=self.describe_images().get('Images')[0].get('ImageId'),
             InstanceType=instance_type,
             KeyName=self.key_pair_name,
+            UserData=self.user_data,
             SecurityGroups=[
                 'iprotate',
             ],
@@ -188,11 +199,11 @@ class Aws:
         waiter = self.ec2.get_waiter('instance_running')
         waiter.wait(InstanceIds=[new_instance_id])
         self.config.set_value(self.config_name, 'instanceId', new_instance_id)
-        self.config.write_changes()
+        self.config.write_changes(self.config_name)
         self.aws_config = self.config.load_aws_config(self.config_name)
         self.aws_config['instanceId'] = new_instance_id
         self.config.set_value(self.config_name, 'instanceId', new_instance_id)
-        self.config.write_changes()
+        self.config.write_changes(self.config_name)
         return self.ec2.describe_instances(InstanceIds=[new_instance_id])
     def terminate_instance(self):
         instances_list = self.ec2.describe_instances()
@@ -202,7 +213,7 @@ class Aws:
                         instance_id = instance['Instances'][0]['InstanceId']
                         self.ec2.terminate_instances(InstanceIds=[instance_id])
         self.config.set_value(self.config_name, 'instanceId', '')
-        self.config.write_changes()
+        self.config.write_changes(self.config_name)
         instance_detail = {
             'InstanceId': '',
             'State': 'terminated'
@@ -357,15 +368,16 @@ class Aws:
         return
     def get_new_ip(self):
         if self.aws_config['instanceId'] != '':
-            print('Changing IP')
+            logger.info(f'[{self.aws_config["configName"]}] Replacing IP address')
             old_ip = self.get_instance_address()
             self.disassociate_and_release_ip()
             self.allocate_and_associate_ip()
             new_ip = self.get_instance_address()
         else:
-            print('Launching new instance')
+            logger.info(f'[{self.aws_config["configName"]}] Launching new instance')
             old_ip = None
             self.terminate_instance()
             self.launch_instance()
             new_ip = self.get_instance_address()
+        logger.info(f'[{self.aws_config["configName"]}] old_ip: {old_ip}, new_ip: {new_ip}')
         return {"old_ip": old_ip, "new_ip": new_ip}

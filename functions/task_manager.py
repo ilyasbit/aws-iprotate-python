@@ -1,11 +1,9 @@
-from functions.aws import Aws
 from functions.main import ConfigLoader
-from functions.service import ServiceManager
-from functions.ssh_setup import SetupHost
 from functions.run import RunTask
 import datetime
-import time
-import os
+import colorlog
+logger = colorlog.getLogger()
+
 
 class TaskManager:
   def __init__(self):
