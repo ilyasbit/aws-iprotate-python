@@ -13,7 +13,7 @@ handler.setFormatter(colorlog.ColoredFormatter(
     reset=True,
     log_colors={
 		'DEBUG':    'bold_green,bg_black',
-		'INFO':     'bold_white,bg_white',
+		'INFO':     'bold_green,bg_black',
 		'WARNING':  'bold_white,bg_red',
 		'ERROR':    'red',
 		'CRITICAL': 'red,bg_white',
@@ -39,7 +39,6 @@ def check_task_status(kwargs):
 @app.route('/change_ip', methods=['GET'])
 def get_start_process():
     apikey = request.args.get('apikey')
-    print(f'apikey: {apikey}')
     config_name = request.args.get('config_name')
     config = ConfigLoader()
     if config.load_aws_config(config_name) == None:
@@ -85,7 +84,6 @@ def get_start_process():
 def get_change_region():
     apikey = request.args.get('apikey')
     new_region = request.args.get('new_region')
-    print(f'apikey: {apikey}')
     config_name = request.args.get('config_name')
     config = ConfigLoader()
     if config.load_aws_config(config_name) == None:
