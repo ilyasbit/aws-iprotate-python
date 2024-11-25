@@ -132,6 +132,7 @@ class ConfigLoader:
         peer_config.set('Interface', 'Address', peer_ip)
         peer_config.set('Interface', 'PostUp', post_up_string)
         peer_config.set('Interface', 'PreDown', pre_down_string)
+        peer_config.set('Interface', 'MTU', '1500')
         peer_config.set('Peer', 'PublicKey', interface_wg_public_key)
         peer_config.set('Peer', 'AllowedIPs', interface_ip)
         #make sure directory exists
@@ -221,6 +222,7 @@ class ConfigLoader:
         wg_config.set('Interface', 'PostUp', post_up_string)
         wg_config.set('Interface', 'PreDown', pre_down_string)
         wg_config.set('Interface', 'PostDown', post_down_string)
+        wg_config.set('Interface', 'MTU', '1500')
         if newip:
             wg_config.set('Peer', 'Endpoint', f"{newip}:{peer_wg_port}")
         wg_config.set('Peer', 'PublicKey', peer_wg_public_key)
