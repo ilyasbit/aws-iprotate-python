@@ -61,9 +61,12 @@ def get_start_process():
     response = {
     'config_name': config_name,
     'region': aws_config.get('region'),
-    'socks5_proxy': socks5_proxy,
-    'last_task': task.profile[config_name]['last_task']
+    'socks5_proxy': socks5_proxy
     }
+    if not hasattr(task.profile, config_name):
+        task.register_profile(config_name)
+    if hasattr(task.profile[config_name], 'last_task'):
+        response['last_task'] = task.profile[config_name]['last_task']
     if hasattr(task.profile[config_name], 'current_task'):
         response['current_task'] = task.profile[config_name]['current_task']
     task_type = 'change_ip'
@@ -122,7 +125,7 @@ def get_change_region():
     response['message'] = 'Process started'
     return jsonify(response)
 
-@app.route('/getTask', methods=['GET'])
+@app.route('/get_task', methods=['GET'])
 def get_task():
     apikey = request.args.get('apikey')
     config = ConfigLoader()

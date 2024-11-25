@@ -12,6 +12,7 @@ class RunTask:
     self.config = ConfigLoader()
     self.key_path = self.config.api_config['sshKeyPath']
     self.username = 'ubuntu'
+    self.basesocks_port = 50000
   def change_region(self, **kwargs):
     config = ConfigLoader()
     config_name = kwargs.get('config_name')
@@ -41,7 +42,7 @@ class RunTask:
     service = ServiceManager(f'iprotate_{order}_{config_name}')
     service.restart_iprotate_service()
     publicip = config.api_config['publicip']
-    proxy_port = int(f'5000{order}')
+    proxy_port = self.basesocks_port + int(order)
     proxy_user = aws.aws_config['user']
     proxy_pass = aws.aws_config['pass']
     cconn = Socks5(proxy_host=publicip, proxy_port=proxy_port, proxy_user=proxy_user, proxy_pass=proxy_pass)
@@ -82,7 +83,7 @@ class RunTask:
     service = ServiceManager(f'iprotate_{order}_{config_name}')
     service.stop()
     service.restart_iprotate_service()
-    proxy_port = int(f'5000{order}')
+    proxy_port = self.basesocks_port + int(order)
     proxy_user = aws.aws_config['user']
     proxy_pass = aws.aws_config['pass']
     cconn = Socks5(

@@ -18,6 +18,6 @@ class Socks5:
         password=self.proxy_pass))
         request.install_opener(opener)
         try:
-          return request.urlopen('http://ifconfig.me/ip', timeout=self.timeout).read().decode('utf-8')
+            return request.urlopen('http://ifconfig.me/ip', timeout=self.timeout).read().decode('utf-8')
         except Exception as e:
             raise Exception('Failed to get external IP') from e
