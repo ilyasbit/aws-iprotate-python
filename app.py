@@ -38,6 +38,7 @@ def check_task_status(kwargs):
 
 @app.route('/change_ip', methods=['GET'])
 def get_start_process():
+    base_socks5_port = 50000
     apikey = request.args.get('apikey')
     config_name = request.args.get('config_name')
     config = ConfigLoader()
@@ -54,10 +55,11 @@ def get_start_process():
     password = aws_config.get('pass')
     publicip = api_config.get('publicip')
     order = aws_config.get('order')
+    socks5_port = base_socks5_port + int(order)
     if user and password:
-        socks5_proxy = f'{publicip}:5000{order}:{user}:{password}'
+        socks5_proxy = f'{publicip}:{socks5_port}:{user}:{password}'
     else:
-        socks5_proxy = f'{publicip}:5000{order}'
+        socks5_proxy = f'{publicip}:{socks5_port}'
     response = {
     'config_name': config_name,
     'region': aws_config.get('region'),
@@ -85,6 +87,7 @@ def get_start_process():
 
 @app.route('/change_region', methods=['GET'])
 def get_change_region():
+    base_socks5_port = 50000
     apikey = request.args.get('apikey')
     new_region = request.args.get('new_region')
     config_name = request.args.get('config_name')
