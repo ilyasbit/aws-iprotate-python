@@ -18,6 +18,7 @@ jmespath==1.0.1
 lockfile==0.12.2
 MarkupSafe==3.0.2
 openssl-python==0.1.1
+pyOpenSSL==24.3.0
 packaging==24.2
 paramiko==3.5.0
 pexpect==4.9.0
