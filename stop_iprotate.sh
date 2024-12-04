@@ -6,7 +6,7 @@ interface_name=$(echo $wg_config | cut -d "." -f1)
 echo "Stopping WireGuard interface $config_name"
 running_wg=$(wg show $interface_name 2>&1)
 if [ $? == 0 ]; then
-  wg-quick down /opt/cloud-iprotate/profile_config/${config_name}/${wg_config}
+  wg-quick down /opt/cloud-iprotate/profile_config/${config_name}/${wg_config} >>/opt/cloud-iprotate/profile_config/${config_name}/log.txt
 else
   echo "WireGuard interface $config_name is not running"
 fi
