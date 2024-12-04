@@ -89,6 +89,7 @@ class Aws:
                 return keypair
         try:
             import datetime
+
             date = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
             response = self.ec2.import_key_pair(
                 KeyName=f"iprotate-{date}",

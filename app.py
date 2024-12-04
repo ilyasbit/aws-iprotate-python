@@ -10,6 +10,9 @@ from functions.main import ConfigLoader
 from functions.service import ServiceManager
 from functions.task_manager import TaskManager
 
+base_socks5_port = 50000
+base_http_port = 60000
+
 logger = colorlog.getLogger()
 logger.setLevel(colorlog.INFO)
 handler = colorlog.StreamHandler()
@@ -76,7 +79,6 @@ def check_last_task(kwargs):
 
 @app.route("/change_ip", methods=["GET"])
 def get_start_process():
-    base_socks5_port = 50000
     apikey = request.args.get("apikey")
     config_name = request.args.get("config_name")
     config = ConfigLoader()
@@ -94,14 +96,19 @@ def get_start_process():
     publicip = api_config.get("publicip")
     order = aws_config.get("order")
     socks5_port = base_socks5_port + int(order)
+    http_port = base_http_port + int(order)
     if user and password:
         socks5_proxy = f"{publicip}:{socks5_port}:{user}:{password}"
+        http_proxy = f"{publicip}:{http_port}:{user}:{password}"
     else:
         socks5_proxy = f"{publicip}:{socks5_port}"
+        http_proxy = f"{publicip}:{http_port}"
+
     response = {
         "config_name": config_name,
         "region": aws_config.get("region"),
         "socks5_proxy": socks5_proxy,
+        "http_proxy": http_proxy,
     }
     if not hasattr(task.profile, config_name):
         task.register_profile(config_name)
@@ -229,6 +236,7 @@ def get_config_detail():
     if config.load_aws_config(config_name) is None:
         return jsonify({"message": "Config not found"})
     api_config = config.load_api_config()
+    publicip = api_config.get("publicip")
     aws_config = config.load_aws_config(config_name)
     config_apikey = api_config.get("apikey")
     aws_apikey = aws_config.get("apikey")
@@ -243,9 +251,23 @@ def get_config_detail():
     last_task = profile_task.get("last_task") or None
     status = profile_task.get("status") or "idle"
     response.update(aws_config)
+    user = aws_config.get("user")
+    password = aws_config.get("pass")
+    order = aws_config.get("order")
+    socks5_port = base_socks5_port + int(order)
+    http_port = base_http_port + int(order)
+    if user and password:
+        socks5_proxy = f"{publicip}:{socks5_port}:{user}:{password}"
+        http_proxy = f"{publicip}:{http_port}:{user}:{password}"
+    else:
+        socks5_proxy = f"{publicip}:{socks5_port}"
+        http_proxy = f"{publicip}:{http_port}"
+
     response["current_task"] = current_task
     response["last_task"] = last_task
     response["status"] = status
+    response["socks5_proxy"] = socks5_proxy
+    response["http_proxy"] = http_proxy
     return jsonify(response)
 
 
