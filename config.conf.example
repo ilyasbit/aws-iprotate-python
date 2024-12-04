@@ -4,8 +4,8 @@ port = 3000
 publicip = 1.1.1.1
 interfacewgprivatekey = EKQjHssyQE4MVKmrv4xpVO3vsnt0kxxxxxxxxxxxxx=
 interfacewgpublickey = JTd3H3va2TrXXkEqs/m6gYvXuaSMQaxxxxxxxxxxxxx=
-peerwgpublickey = 7TV7byE1FngcIM40+NsmwUjPWUUFnCxxxxxxxxxxxxx=
 peerwgprivatekey = kJnY0vLqqwAbyaGSF1MySN96Txxxxxxxxxxxxx=
+peerwgpublickey = 7TV7byE1FngcIM40+NsmwUjPWUUFnCxxxxxxxxxxxxx=
 sshkeypath = /root/.ssh/id_rsa
 
 [aws1]
