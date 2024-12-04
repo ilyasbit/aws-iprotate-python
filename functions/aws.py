@@ -87,16 +87,21 @@ class Aws:
             if keypair["KeyFingerprint"] == fingerprint:
                 self.key_pair_name = keypair["KeyName"]
                 return keypair
-        response = self.ec2.import_key_pair(
-            KeyName=self.config_name,
-            PublicKeyMaterial=f"ssh-rsa {public_key_string}",
-            TagSpecifications=[
-                {
-                    "ResourceType": "key-pair",
-                    "Tags": [{"Key": "role", "Value": "iprotate"}],
-                }
-            ],
-        )
+        try:
+            import datetime
+            date = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+            response = self.ec2.import_key_pair(
+                KeyName=f"iprotate-{date}",
+                PublicKeyMaterial=f"ssh-rsa {public_key_string}",
+                TagSpecifications=[
+                    {
+                        "ResourceType": "key-pair",
+                        "Tags": [{"Key": "role", "Value": "iprotate"}],
+                    }
+                ],
+            )
+        except Exception as keypairError:
+            raise Exception(f"Error importing keypair: {keypairError}")
         self.key_pair_name = response["KeyName"]
         return response
 
