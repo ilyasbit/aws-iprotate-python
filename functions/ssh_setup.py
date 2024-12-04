@@ -192,6 +192,7 @@ class SetupHost:
         )
         self.ssh.execute_script("/tmp/change_eth.sh")
         self.ssh.enable_service("wg-quick@wg0")
+        self.ssh.restart_service("wg-quick@wg0")
         self.ssh.close()
 
     def close(self):
