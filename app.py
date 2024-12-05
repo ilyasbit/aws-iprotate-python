@@ -254,6 +254,7 @@ def get_config_detail():
     response.pop("accessKey", None)
     response.pop("secretKey", None)
     response["config_name"] = response.pop("configName")
+    response["instanceid"] = response.pop("instanceId")
     user = aws_config.get("user")
     password = aws_config.get("pass")
     order = aws_config.get("order")
