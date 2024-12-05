@@ -231,6 +231,7 @@ class Aws:
         self.config.set_value(self.config_name, "instanceId", "")
         self.config.write_changes(self.config_name)
         instance_detail = {"InstanceId": "", "State": "terminated"}
+        logger.info(f"Instance terminated on {self.aws_config['configName']}")
         return instance_detail
 
     def get_instance_type_free_tier(self):
@@ -343,10 +344,13 @@ class Aws:
         return self.ec2.describe_instances(InstanceIds=[self.aws_config["instanceId"]])
 
     def get_instance_address(self):
-        response = self.ec2.describe_instances(
-            InstanceIds=[self.aws_config["instanceId"]]
-        )
-        return response["Reservations"][0]["Instances"][0]["PublicIpAddress"]
+        try:
+            response = self.ec2.describe_instances(
+                InstanceIds=[self.aws_config["instanceId"]]
+            )
+            return response["Reservations"][0]["Instances"][0]["PublicIpAddress"]
+        except Exception as e:
+            raise Exception(f"Error getting instance address: {e}")
 
     def associate_ip(self, ip_address):
         ec2 = boto3.client(
@@ -402,19 +406,42 @@ class Aws:
         return
 
     def get_new_ip(self):
-        if self.aws_config["instanceId"] != "":
-            logger.info(f'[{self.aws_config["configName"]}] Replacing IP address')
-            old_ip = self.get_instance_address()
-            self.disassociate_and_release_ip()
-            self.allocate_and_associate_ip()
-            new_ip = self.get_instance_address()
-        else:
-            logger.info(f'[{self.aws_config["configName"]}] Launching new instance')
-            old_ip = None
-            self.terminate_instance()
-            self.launch_instance()
-            new_ip = self.get_instance_address()
-        logger.info(
-            f'[{self.aws_config["configName"]}] old_ip: {old_ip}, new_ip: {new_ip}'
-        )
-        return {"old_ip": old_ip, "new_ip": new_ip}
+        try:
+            if self.aws_config["instanceId"] != "":
+                logger.info(f'[{self.aws_config["configName"]}] Replacing IP address')
+                old_ip = self.get_instance_address()
+                logger.info(
+                    f'[{self.aws_config["configName"]}] Disassociating and releasing IP'
+                )
+                self.disassociate_and_release_ip()
+                logger.info(
+                    f'[{self.aws_config["configName"]}] Allocating and associating new IP'
+                )
+                self.allocate_and_associate_ip()
+                logger.info(f'[{self.aws_config["configName"]}] Getting new IP address')
+                new_ip = self.get_instance_address()
+                logger.info(
+                    f'[{self.aws_config["configName"]}] New IP address: {new_ip}'
+                )
+            else:
+                logger.info(f'[{self.aws_config["configName"]}] Launching new instance')
+                old_ip = None
+                self.terminate_instance()
+                self.launch_instance()
+                new_ip = self.get_instance_address()
+            logger.info(
+                f'[{self.aws_config["configName"]}] old_ip: {old_ip}, new_ip: {new_ip}'
+            )
+            return {"old_ip": old_ip, "new_ip": new_ip}
+        except Exception as e:
+            raise Exception(f"Error getting new IP: {e}")
+
+
+if __name__ == "__main__":
+    config_name = "aws02"
+    aws = Aws(config_name)
+    aws.login()
+    aws.terminate_instance()
+    aws.launch_instance()
+    aws_ip = aws.get_instance_address()
+    print(aws_ip)

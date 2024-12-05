@@ -133,6 +133,29 @@ def get_start_process():
     return jsonify(response)
 
 
+@app.route("/reset", methods=["GET"])
+def get_reset():
+    apikey = request.args.get("apikey")
+    config_name = request.args.get("config_name")
+    config = ConfigLoader()
+    if config.load_aws_config(config_name) is None:
+        return jsonify({"message": "Config not found"})
+    api_config = config.load_api_config()
+    aws_config = config.load_aws_config(config_name)
+    config_apikey = api_config.get("apikey")
+    aws_apikey = aws_config.get("apikey")
+    if apikey != config_apikey:
+        if apikey != aws_apikey:
+            return jsonify({"message": "Invalid API key"})
+    task_type = "reset"
+    kwargs = {"task_type": task_type, "config_name": config_name}
+    try:
+        threading.Thread(target=task.set_start_task, kwargs=kwargs).start()
+        return jsonify({"message": "Process started"})
+    except Exception as e:
+        return jsonify({"message": str(e)})
+
+
 @app.route("/change_auth", methods=["GET"])
 def get_change_auth():
     apikey = request.args.get("apikey")

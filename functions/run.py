@@ -175,6 +175,24 @@ class RunTask:
             logger.error(e)
             return {"status": "failed", "data": str(e)}
 
+    def reset(self, **kwargs):
+        try:
+            config_name = kwargs.get("config_name")
+            aws = Aws(config_name)
+            aws.login()
+            aws.terminate_instance()
+            config = ConfigLoader()
+            config.set_value(config_name, "region", "us-east-2")
+            config.set_value(config_name, "whitelist", "")
+            config.set_value(config_name, "instanceid", "")
+            config.set_value(config_name, "user", "")
+            config.set_value(config_name, "pass", "")
+            config.write_changes(config_name)
+            return {"status": "success", "data": "config reset"}
+        except Exception as e:
+            logger.error(f"Error on reset {config_name} : {e}")
+            return {"status": "failed", "data": str(e)}
+
     def change_auth(self, **kwargs):
         try:
             config_name = kwargs.get("config_name")

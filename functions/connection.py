@@ -64,19 +64,22 @@ class Firewall:
         rule_list = ufw.status().get("rules")
         for index, rule in reversed(rule_list.items()):
             if re.search(rf" {self.app_name}$", rule):
+                logger.info(f"removing rule {rule} on index {index}")
                 ufw.delete(index)
 
     def apply_whitelist(self):
-
         if self.whitelist != "":
-            logger.info(f"add whitelist rules to profile {self.app_name} {self.whitelist}")
+            logger.info(
+                f"add whitelist rules to profile {self.app_name} {self.whitelist}"
+            )
             for ip in self.whitelist:
                 try:
                     ip = ip.strip()
                     if ipaddress.ip_network(ip, strict=False):
-
                         ufw.add("allow from " + ip + " to any app " + self.app_name)
-                        logger.info(f"add whitelist rule {ip} to profile {self.app_name}")
+                        logger.info(
+                            f"add whitelist rule {ip} to profile {self.app_name}"
+                        )
                 except Exception:
                     continue
             try:
