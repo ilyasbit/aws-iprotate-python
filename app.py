@@ -253,6 +253,7 @@ def get_config_detail():
     response.update(aws_config)
     response.pop("accessKey", None)
     response.pop("secretKey", None)
+    response.pop("apikey", None)
     response["config_name"] = response.pop("configName")
     response["instanceid"] = response.pop("instanceId")
     user = aws_config.get("user")
