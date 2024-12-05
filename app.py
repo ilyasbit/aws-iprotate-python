@@ -251,6 +251,9 @@ def get_config_detail():
     last_task = profile_task.get("last_task") or None
     status = profile_task.get("status") or "idle"
     response.update(aws_config)
+    response.pop("accessKey", None)
+    response.pop("secretKey", None)
+    response["config_name"] = response.pop("configName")
     user = aws_config.get("user")
     password = aws_config.get("pass")
     order = aws_config.get("order")
