@@ -7,6 +7,10 @@ inventory
 profile_config/ip*
 interface_*
 peer_*
+interface_privatekey
+peer_privatekey
+interface_publickey
+peer_publickey
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
