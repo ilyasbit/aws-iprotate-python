@@ -55,8 +55,8 @@ class Firewall:
         with open(file_path, "w") as configfile:
             app_config.write(configfile)
         try:
-            ufw_list = os.system("ufw app list")
-            # os.system("ufw app update iprotate_{self.order}")
+            os.system("ufw app list >/dev/null 2>&1")
+            os.system("ufw app update iprotate_{self.order}")
         except Exception as e:
             logger.error(e)
 
@@ -67,17 +67,28 @@ class Firewall:
                 ufw.delete(index)
 
     def apply_whitelist(self):
+
         if self.whitelist != "":
+            logger.info(f"add whitelist rules to profile {self.app_name} {self.whitelist}")
             for ip in self.whitelist:
                 try:
                     ip = ip.strip()
                     if ipaddress.ip_network(ip, strict=False):
+
                         ufw.add("allow from " + ip + " to any app " + self.app_name)
+                        logger.info(f"add whitelist rule {ip} to profile {self.app_name}")
                 except Exception:
                     continue
-            ufw.add("reject from any to any app " + self.app_name)
+            try:
+                logger.info(f"add reject rules to profie {self.app_name}")
+                ufw.add("reject from any to any app " + self.app_name)
+            except Exception as e:
+                logger.error(e)
         else:
-            ufw.add("allow from any to any app " + self.app_name)
+            try:
+                ufw.add("allow from any to any app " + self.app_name)
+            except Exception as e:
+                logger.error(e)
 
 
 class Socks5:

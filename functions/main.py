@@ -110,13 +110,16 @@ class ConfigLoader:
             aws_configs.append(self.load_aws_config(config_name))
         return aws_configs
 
-    def generate_peer_config(self, config_name):
+    async def generate_peer_config(self, config_name):
         from functions.connection import Firewall
 
         try:
-            fw = Firewall(config_name=config_name)
+            fw = await Firewall(config_name=config_name)
+            logger.info("configuring firewall")
             fw.delete_rules()
-            fw.apply_whitelist()
+            logger.info("deleting ufw rules")
+            await fw.apply_whitelist()
+            logger.info("applying whitelist")
         except Exception as e:
             logger.error(e)
         aws_config = self.load_aws_config(config_name)
