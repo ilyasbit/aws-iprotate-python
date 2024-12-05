@@ -55,8 +55,8 @@ class Firewall:
         with open(file_path, "w") as configfile:
             app_config.write(configfile)
         try:
-            os.system("ufw app list")
-            os.system("ufw app update iprotate_{self.order}")
+            ufw_list = os.system("ufw app list")
+            # os.system("ufw app update iprotate_{self.order}")
         except Exception as e:
             logger.error(e)
 
