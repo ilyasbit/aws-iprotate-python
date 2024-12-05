@@ -173,6 +173,7 @@ class SetupHost:
             host=self.host, username=self.username, key_path=self.key_path
         )
         self.ssh.connect()
+        logger.info(f"Connected to {self.host}")
 
     def setup(self):
         if not self.ssh:

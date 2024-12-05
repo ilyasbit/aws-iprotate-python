@@ -113,9 +113,12 @@ class ConfigLoader:
     def generate_peer_config(self, config_name):
         from functions.connection import Firewall
 
-        fw = Firewall(config_name=config_name)
-        fw.delete_rules()
-        fw.apply_whitelist()
+        try:
+            fw = Firewall(config_name=config_name)
+            fw.delete_rules()
+            fw.apply_whitelist()
+        except Exception as e:
+            logger.error(e)
         aws_config = self.load_aws_config(config_name)
         peer_wg_port = "51821"
         interface_wg_public_key = self.api_config["interfaceWgPublicKey"]
@@ -155,6 +158,7 @@ class ConfigLoader:
         # read the file and return the content
         with open(f"{config_path}/wg0.conf", "r") as file:
             return file.read()
+        logger.info(f"Generated peer config for {config_name}")
 
     def generate_shadowsocks_config(self, config_name):
         ss_config = {}
@@ -195,6 +199,7 @@ class ConfigLoader:
         ss_config_json = json.dumps(ss_config)
         with open(path, "w") as file:
             file.write(ss_config_json)
+        logger.info(f"Generated shadowsocks config for {config_name}")
 
     def generate_3proxy_config(self, config_name):
         aws_config = self.load_aws_config(config_name)
@@ -243,6 +248,7 @@ class ConfigLoader:
             f"profile_config/{profile_name}/proxy_{profile_name}.cfg", "w"
         ) as file:
             file.write(proxy_config_string)
+        logger.info(f"Generated 3proxy config for {config_name}")
 
     def generate_profile_config(self, config_name, newip):
         peer_wg_port = "51821"
@@ -304,5 +310,6 @@ class ConfigLoader:
         wg_config.write(
             open(f"profile_config/{profile_name}/{interface_name}.conf", "w")
         )
+        logger.info(f"Generated profile config for {config_name}")
         self.generate_3proxy_config(config_name)
         self.generate_shadowsocks_config(config_name)

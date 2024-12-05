@@ -120,7 +120,11 @@ class RunTask:
             host.setup()
             publicip = config.api_config["publicip"]
             service = ServiceManager(f"iprotate_{order}_{config_name}")
-            service.stop()
+            try:
+                service.stop()
+            except Exception as e:
+                logger.warning(e)
+
             service.restart_iprotate_service()
             proxy_port = self.basesocks_port + int(order)
             proxy_user = aws.aws_config["user"]

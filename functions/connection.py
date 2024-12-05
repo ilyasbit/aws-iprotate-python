@@ -4,11 +4,14 @@ import re
 from configparser import ConfigParser
 from urllib import request
 
+import colorlog
 import pyufw as ufw
 import socks
 from sockshandler import SocksiPyHandler
 
 from functions.main import ConfigLoader
+
+logger = colorlog.getLogger()
 
 
 class Firewall:
@@ -51,7 +54,11 @@ class Firewall:
         file_path = f"/etc/ufw/applications.d/iprotate_{self.order}"
         with open(file_path, "w") as configfile:
             app_config.write(configfile)
-        os.system("ufw app update iprotate_{self.order}")
+        try:
+            os.system("ufw app list")
+            os.system("ufw app update iprotate_{self.order}")
+        except Exception as e:
+            logger.error(e)
 
     def delete_rules(self):
         rule_list = ufw.status().get("rules")
