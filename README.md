@@ -120,42 +120,42 @@ Connect to your VPS login as root and follow the command below
 
 - Change ip address
 
-```
-ip:port/change_ip?config_name=aws01&apikey=api
-```
+  ```
+  ip:port/change_ip?config_name=aws01&apikey=api
+  ```
 
 - Change region
 
-```
-ip:port/change_region?config_name=aws01&region=us-east-1&apikey=api
-```
+  ```
+  ip:port/change_region?config_name=aws01&region=us-east-1&apikey=api
+  ```
 
 - Change whitelist
 
-```
-ip:port/change_whitelist?config_name=aws01&new_whitelist=180.252.29.235&apikey=api
-```
+  ```
+  ip:port/change_whitelist?config_name=aws01&new_whitelist=180.252.29.235&apikey=api
+  ```
 
 - Change authentication
 
-```
-ip:port/change_auth?config_name=aws01&new_user=ilyas&new_pass=123456&apikey=api
-```
+  ```
+  ip:port/change_auth?config_name=aws01&new_user=ilyas&new_pass=123456&apikey=api
+  ```
 
 - Get config & details
 
-```
-ip:port/get_config?config_name=aws01&apikey=api
-```
+  ```
+  ip:port/get_config?config_name=aws01&apikey=api
+  ```
 
 - Get all task
 
-```
-ip:port/get_task?apikey=api
-```
+  ```
+  ip:port/get_task?apikey=api
+  ```
 
 - Reset Config on Config name
 
-```
-ip:port/reset?config_name=aws01&apikey=api
-```
+  ```
+  ip:port/reset?config_name=aws01&apikey=api
+  ```
