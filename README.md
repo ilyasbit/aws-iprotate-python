@@ -43,7 +43,7 @@
 
 ## Setup Process
 
-generate open ssh key and copy it to your VPS
+generate open ssh key and copy it to your VPS.  
 Connect to your VPS login as root and follow the command below
 
 - Update Package list
