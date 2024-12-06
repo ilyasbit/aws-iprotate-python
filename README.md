@@ -1,5 +1,11 @@
 # AWS Iprotate Python
 
+**Video Guide**
+[https://youtu.be/ndD5LgG0-oU](https://youtu.be/ndD5LgG0-oU)
+
+**support me**
+[https://saweria.co/ilyasbit](https://saweria.co/ilyasbit)
+
 ## Requirement
 
 - **Router VPS**
