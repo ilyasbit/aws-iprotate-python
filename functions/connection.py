@@ -55,8 +55,10 @@ class Firewall:
         with open(file_path, "w") as configfile:
             app_config.write(configfile)
         try:
-            os.system("ufw app list >/dev/null 2>&1")
-            os.system("ufw app update iprotate_{self.order}")
+            os.system("ufw app list > /dev/null 2>&1")
+            logger.info(f"app list updated {self.app_name}")
+            os.system("ufw app update iprotate_{self.order} > /dev/null 2>&1")
+            logger.info(f"add app profile {self.app_name}")
         except Exception as e:
             logger.error(e)
 
@@ -69,14 +71,13 @@ class Firewall:
 
     def apply_whitelist(self):
         if self.whitelist != "":
-            logger.info(
-                f"add whitelist rules to profile {self.app_name} {self.whitelist}"
-            )
             for ip in self.whitelist:
                 try:
                     ip = ip.strip()
                     if ipaddress.ip_network(ip, strict=False):
-                        ufw.add("allow from " + ip + " to any app " + self.app_name)
+                        os.system("ufw allow from " + ip + " to any app " + 
+                                self.app_name + 
+                                " > /dev/null 2>&1")
                         logger.info(
                             f"add whitelist rule {ip} to profile {self.app_name}"
                         )
@@ -84,12 +85,15 @@ class Firewall:
                     continue
             try:
                 logger.info(f"add reject rules to profie {self.app_name}")
-                ufw.add("reject from any to any app " + self.app_name)
+                os.system("ufw reject from any to any app " + 
+                        self.app_name +
+                        " > /dev/null 2>&1")
             except Exception as e:
                 logger.error(e)
         else:
             try:
-                ufw.add("allow from any to any app " + self.app_name)
+                logger.info(f"add allow all rules to profile {self.app_name}")
+                os.system(f"ufw allow from any to any app " + self.app_name)
             except Exception as e:
                 logger.error(e)
 

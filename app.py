@@ -120,8 +120,12 @@ def get_start_process():
     kwargs = {"task_type": task_type, "config_name": config_name}
     # check aws login
     aws_login = Aws(config_name)
-    if not aws_login.login():
-        response["message"] = "AWS login failed"
+    try:
+        aws_login.login()
+    except Exception as e:
+        response["status"] = "failed"
+        response["message"] = str(e)
+        task.set_stop_task(config_name, "failed", response["message"])
         return jsonify(response)
     if check_task_status(kwargs) == "busy":
         response["status"] = "busy"
@@ -149,6 +153,18 @@ def get_reset():
             return jsonify({"message": "Invalid API key"})
     task_type = "reset"
     kwargs = {"task_type": task_type, "config_name": config_name}
+    response = {
+        "config_name": config_name,
+        "region": aws_config.get("region"),
+    }
+    aws_login = Aws(config_name)
+    try:
+        aws_login.login()
+    except Exception as e:
+        response["status"] = "failed"
+        response["message"] = str(e)
+        task.set_stop_task(config_name, "failed", response["message"])
+        return jsonify(response)
     try:
         threading.Thread(target=task.set_start_task, kwargs=kwargs).start()
         return jsonify({"message": "Process started"})
@@ -178,6 +194,18 @@ def get_change_auth():
         "new_user": new_user,
         "new_pass": new_pass,
     }
+    response = {
+        "config_name": config_name,
+        "region": aws_config.get("region"),
+    }
+    aws_login = Aws(config_name)
+    try:
+        aws_login.login()
+    except Exception as e:
+        response["status"] = "failed"
+        response["message"] = str(e)
+        task.set_stop_task(config_name, "failed", response["message"])
+        return jsonify(response)
     try:
         threading.Thread(target=task.set_start_task, kwargs=kwargs).start()
         return jsonify({"message": "Process started"})
@@ -217,6 +245,14 @@ def get_change_region():
         "new_region": new_region,
         "last_task": task.profile[config_name]["last_task"],
     }
+    aws_login = Aws(config_name)
+    try:
+        aws_login.login()
+    except Exception as e:
+        response["status"] = "failed"
+        response["message"] = str(e)
+        task.set_stop_task(config_name, "failed", response["message"])
+        return jsonify(response)
     if hasattr(task.profile[config_name], "current_task"):
         response["current_task"] = task.profile[config_name]["current_task"]
 
@@ -245,8 +281,18 @@ def get_available_region():
     if apikey != config_apikey:
         if apikey != aws_apikey:
             return jsonify({"message": "Invalid API key"})
+    response = {
+        "config_name": config_name,
+        "region": aws_config.get("region"),
+    }
     aws = Aws(config_name)
-    aws.login()
+    try:
+        aws.login()
+    except Exception as e:
+        response["status"] = "failed"
+        response["message"] = str(e)
+        task.set_stop_task(config_name, "failed", response["message"])
+        return jsonify(response)
     regions = aws.get_all_regions()
     return jsonify(regions)
 
@@ -266,8 +312,18 @@ def get_config_detail():
     if apikey != config_apikey:
         if apikey != aws_apikey:
             return jsonify({"message": "Invalid API key"})
+    response = {
+        "config_name": config_name,
+        "region": aws_config.get("region"),
+    }
     aws = Aws(config_name)
-    response = {}
+    try:
+        aws.login()
+    except Exception as e:
+        response["status"] = "failed"
+        response["message"] = str(e)
+        task.set_stop_task(config_name, "failed", response["message"])
+        return jsonify(response)
     response["available_region"] = aws.get_all_regions()
     profile_task = task.profile.get(config_name)
     current_task = profile_task.get("current_task") or None
