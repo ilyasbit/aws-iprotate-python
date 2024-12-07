@@ -93,7 +93,9 @@ class Firewall:
         else:
             try:
                 logger.info(f"add allow all rules to profile {self.app_name}")
-                os.system(f"ufw allow from any to any app " + self.app_name)
+                os.system(f"ufw allow from any to any app " + 
+                        self.app_name + 
+                        " > /dev/null 2>&1")
             except Exception as e:
                 logger.error(e)
 
