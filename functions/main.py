@@ -75,6 +75,10 @@ class ConfigLoader:
             self.config.set(config_name, "apikey", "")
         if not self.config.has_option(config_name, "whitelist"):
             self.config.set(config_name, "whitelist", "")
+        if not self.config.has_option(config_name, "region"):
+            self.config.set(config_name, "region", "us-east-1")
+        if not self.config.has_option(config_name, "instanceid"):
+            self.config.set(config_name, "instanceid", "")
         return {
             "configName": config_name,
             "order": self.config.get(config_name, "order"),
@@ -258,8 +262,8 @@ class ConfigLoader:
         aws_config = self.load_aws_config(config_name)
         interface_wg_private_key = self.api_config["interfaceWgPrivateKey"]
         peer_wg_public_key = self.api_config["peerWgPublicKey"]
-        interface_name = f'ip_{aws_config["order"]}_{config_name}'
-        profile_name = f'iprotate_{aws_config["order"]}_{config_name}'
+        interface_name = f"ip_{aws_config['order']}_{config_name}"
+        profile_name = f"iprotate_{aws_config['order']}_{config_name}"
         order = aws_config["order"]
         wg_port = self.wgPortBase + int(order)
         interface_ip = f"10.0.{order}.2/32"
