@@ -1,7 +1,7 @@
 import binascii
 import hashlib
 
-import ansible_runner
+import ansible_runner  # noqa: F401
 import boto3
 import colorlog
 import paramiko
@@ -48,14 +48,16 @@ class Aws:
         except Exception as awsClientError:
             raise Exception(f"Error connecting to AWS: {awsClientError}")
         response = self.ec2.describe_images(
+            IncludeDeprecated=True,
+            IncludeDisabled=True,
             Filters=[
                 {
                     "Name": "name",
                     "Values": [
-                        "ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-20240927",
+                        "ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20250305",
                     ],
                 },
-            ]
+            ],
         )
         return response
 
@@ -68,7 +70,7 @@ class Aws:
             raise Exception(f"Error reading keypair file: {keyError}")
         public_key_string = private_key.get_base64()
         private_key_cryptography = serialization.load_pem_private_key(
-            private_key.key.private_bytes(
+            private_key.key.private_bytes(  # type: ignore
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PrivateFormat.TraditionalOpenSSL,
                 encryption_algorithm=serialization.NoEncryption(),
@@ -182,7 +184,7 @@ class Aws:
                         self.aws_config = self.config.load_aws_config(self.config_name)
                         return instance["Instances"][0]
         self.create_security_group()
-        instance_type = self.get_instance_type_free_tier().get("InstanceType")
+        instance_type = self.get_instance_type_free_tier().get("InstanceType")  # type: ignore
         try:
             self.ec2 = boto3.client(
                 "ec2",
@@ -193,7 +195,7 @@ class Aws:
         except Exception as awsClientError:
             raise Exception(f"Error connecting to AWS: {awsClientError}")
         self.set_keypair()
-        instance = self.resource.create_instances(
+        instance = self.resource.create_instances(  # type: ignore
             ImageId=self.describe_images().get("Images")[0].get("ImageId"),
             InstanceType=instance_type,
             KeyName=self.key_pair_name,
@@ -254,7 +256,7 @@ class Aws:
                 return instance
         return None
 
-    def run_ansible_playbook(self, playbook_path):
+    """ def run_ansible_playbook(self, playbook_path):
         for i in range(10):
             try:
                 ssh = paramiko.SSHClient()
@@ -296,8 +298,9 @@ class Aws:
                 envvars=envvars,
                 tags="set-wg",
             )
-        except Exception as ansibleError:
+        except Exception as ansibleError: 
             raise Exception(f"Error running ansible playbook: {ansibleError}")
+            """
 
     def get_all_regions(self):
         ec2 = boto3.client(
@@ -408,29 +411,29 @@ class Aws:
     def get_new_ip(self):
         try:
             if self.aws_config["instanceId"] != "":
-                logger.info(f'[{self.aws_config["configName"]}] Replacing IP address')
+                logger.info(f"[{self.aws_config['configName']}] Replacing IP address")
                 old_ip = self.get_instance_address()
                 logger.info(
-                    f'[{self.aws_config["configName"]}] Disassociating and releasing IP'
+                    f"[{self.aws_config['configName']}] Disassociating and releasing IP"
                 )
                 self.disassociate_and_release_ip()
                 logger.info(
-                    f'[{self.aws_config["configName"]}] Allocating and associating new IP'
+                    f"[{self.aws_config['configName']}] Allocating and associating new IP"
                 )
                 self.allocate_and_associate_ip()
-                logger.info(f'[{self.aws_config["configName"]}] Getting new IP address')
+                logger.info(f"[{self.aws_config['configName']}] Getting new IP address")
                 new_ip = self.get_instance_address()
                 logger.info(
-                    f'[{self.aws_config["configName"]}] New IP address: {new_ip}'
+                    f"[{self.aws_config['configName']}] New IP address: {new_ip}"
                 )
             else:
-                logger.info(f'[{self.aws_config["configName"]}] Launching new instance')
+                logger.info(f"[{self.aws_config['configName']}] Launching new instance")
                 old_ip = None
                 self.terminate_instance()
                 self.launch_instance()
                 new_ip = self.get_instance_address()
             logger.info(
-                f'[{self.aws_config["configName"]}] old_ip: {old_ip}, new_ip: {new_ip}'
+                f"[{self.aws_config['configName']}] old_ip: {old_ip}, new_ip: {new_ip}"
             )
             return {"old_ip": old_ip, "new_ip": new_ip}
         except Exception as e:
