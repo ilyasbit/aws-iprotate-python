@@ -150,7 +150,7 @@ def handle_simulate_task_complete(data):
 def index():
     """Serve the WebSocket test client."""
     try:
-        with open('.taskmaster/websocket_client.html', 'r') as f:
+        with open('websocket_client.html', 'r') as f:
             return f.read()
     except FileNotFoundError:
         return """
@@ -158,7 +158,7 @@ def index():
         <body>
             <h1>WebSocket Test Server</h1>
             <p>WebSocket server is running on this port.</p>
-            <p>WebSocket client HTML file not found. Expected at: .taskmaster/websocket_client.html</p>
+            <p>WebSocket client HTML file not found. Expected at: websocket_client.html</p>
             <p>Use a WebSocket client to connect to this server for testing.</p>
         </body>
         </html>
