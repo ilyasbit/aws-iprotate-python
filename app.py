@@ -1,14 +1,22 @@
 import datetime
 import threading
+import os
 
 import colorlog
 import pyufw as ufw
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
+from flask_socketio import SocketIO
 
 from functions.aws import Aws
 from functions.main import ConfigLoader
 from functions.service import ServiceManager
 from functions.task_manager import TaskManager
+
+# Import WebSocket components
+import sys
+sys.path.append('.taskmaster')
+from websocket_manager import WebSocketTaskManager
+from enhanced_task_manager import EnhancedTaskManager
 
 base_socks5_port = 50000
 base_http_port = 60000
@@ -31,8 +39,17 @@ handler.setFormatter(
     )
 )
 logger.addHandler(handler)
-task = TaskManager()
+
+# Initialize Flask app with SocketIO support
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'taskmaster_websocket_secret_key'
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
+# Initialize task managers
+original_task = TaskManager()
+websocket_manager = WebSocketTaskManager(socketio, original_task)
+task = EnhancedTaskManager(websocket_manager)
+
 app_config = ConfigLoader()
 app_config.load_api_config()
 port = app_config.api_config.get("port")
@@ -131,7 +148,7 @@ def get_start_process():
         response["status"] = "busy"
         response["message"] = "Process is busy"
         return jsonify(response)
-    threading.Thread(target=task.set_start_task, kwargs=kwargs).start()
+    task.start_task_async(**kwargs)
     response["status"] = "busy"
     response["message"] = "Process started"
     return jsonify(response)
@@ -166,7 +183,7 @@ def get_reset():
         task.set_stop_task(config_name, "failed", response["message"])
         return jsonify(response)
     try:
-        threading.Thread(target=task.set_start_task, kwargs=kwargs).start()
+        task.start_task_async(**kwargs)
         return jsonify({"message": "Process started"})
     except Exception as e:
         return jsonify({"message": str(e)})
@@ -207,7 +224,7 @@ def get_change_auth():
         task.set_stop_task(config_name, "failed", response["message"])
         return jsonify(response)
     try:
-        threading.Thread(target=task.set_start_task, kwargs=kwargs).start()
+        task.start_task_async(**kwargs)
         return jsonify({"message": "Process started"})
     except Exception as e:
         return jsonify({"message": str(e)})
@@ -262,7 +279,7 @@ def get_change_region():
     if check_task_status(kwargs) == "busy":
         response["message"] = "Process is busy"
         return jsonify(response)
-    threading.Thread(target=task.set_start_task, kwargs=kwargs).start()
+    task.start_task_async(**kwargs)
     response["message"] = "Process started"
     return jsonify(response)
 
@@ -376,7 +393,7 @@ def change_whitelist():
         if apikey != aws_apikey:
             return jsonify({"message": "Invalid API key"})
     try:
-        threading.Thread(target=task.set_start_task, kwargs=kwargs).start()
+        task.start_task_async(**kwargs)
         return jsonify({"message": "Process started"})
     except Exception as e:
         return jsonify({"message": str(e)})
@@ -393,7 +410,15 @@ def get_task():
     return jsonify(task.profile)
 
 
+@app.route("/websocket")
+def websocket_client():
+    """Serve the WebSocket test client."""
+    return send_from_directory('.taskmaster', 'websocket_client.html')
+
+
 if __name__ == "__main__":
     ufw.enable()
     ufw.default(incoming="allow", outgoing="allow", routed="allow")
-    app.run(port=port, host="0.0.0.0", debug=False)
+    logger.info("Starting TaskMaster with WebSocket support...")
+    logger.info(f"WebSocket client available at: http://localhost:{port}/websocket")
+    socketio.run(app, port=port, host="0.0.0.0", debug=False)

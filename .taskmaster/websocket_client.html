@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskMaster WebSocket Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fafafa;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .controls input, .controls button {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .controls button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        .controls button:hover {
+            background-color: #0056b3;
+        }
+        .controls button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .logs {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+        .log-entry.info {
+            color: #0066cc;
+        }
+        .log-entry.success {
+            color: #28a745;
+        }
+        .log-entry.error {
+            color: #dc3545;
+        }
+        .log-entry.warning {
+            color: #ffc107;
+        }
+        .task-status {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .task-card {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            background-color: white;
+        }
+        .task-card h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .task-info {
+            font-size: 12px;
+            color: #666;
+        }
+        .task-info span {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .clear-logs {
+            float: right;
+            font-size: 12px;
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔗 TaskMaster WebSocket Client</h1>
+            <p>Real-time task monitoring and management interface</p>
+        </div>
+
+        <div class="section">
+            <h3>Connection Status</h3>
+            <div id="connectionStatus" class="status disconnected">Disconnected</div>
+            <div class="controls">
+                <button id="connectBtn" onclick="connect()">Connect</button>
+                <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+                <span id="clientId"></span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Task Subscription</h3>
+            <div class="controls">
+                <input type="text" id="configName" placeholder="Enter config name (e.g., aws01)" />
+                <button onclick="subscribeTask()" id="subscribeBtn" disabled>Subscribe</button>
+                <button onclick="unsubscribeTask()" id="unsubscribeBtn" disabled>Unsubscribe</button>
+                <button onclick="getAllTasks()" id="getAllBtn" disabled>Get All Tasks</button>
+            </div>
+            <div id="subscriptions">
+                <strong>Active Subscriptions:</strong> <span id="activeSubscriptions">None</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Task Simulation (Test Server Only)</h3>
+            <div class="controls">
+                <input type="text" id="simConfigName" placeholder="Config name (e.g., aws01)" />
+                <input type="text" id="simTaskType" placeholder="Task type (e.g., change_ip)" />
+                <button onclick="simulateTaskStart()" id="simStartBtn" disabled>Simulate Start</button>
+                <button onclick="simulateTaskComplete()" id="simCompleteBtn" disabled>Simulate Complete</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Task Status Monitor</h3>
+            <div id="taskStatus" class="task-status">
+                <!-- Task cards will be displayed here -->
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Event Logs</h3>
+            <button class="clear-logs" onclick="clearLogs()">Clear Logs</button>
+            <div id="logs" class="logs">
+                <!-- Log entries will appear here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js"></script>
+    <script>
+        let socket = null;
+        let clientId = null;
+        let activeSubscriptions = new Set();
+
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            logs.appendChild(logEntry);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById('connectionStatus');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const subscribeBtn = document.getElementById('subscribeBtn');
+            const unsubscribeBtn = document.getElementById('unsubscribeBtn');
+            const getAllBtn = document.getElementById('getAllBtn');
+            const simStartBtn = document.getElementById('simStartBtn');
+            const simCompleteBtn = document.getElementById('simCompleteBtn');
+
+            if (connected) {
+                status.textContent = 'Connected';
+                status.className = 'status connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                subscribeBtn.disabled = false;
+                unsubscribeBtn.disabled = false;
+                getAllBtn.disabled = false;
+                simStartBtn.disabled = false;
+                simCompleteBtn.disabled = false;
+            } else {
+                status.textContent = 'Disconnected';
+                status.className = 'status disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                subscribeBtn.disabled = true;
+                unsubscribeBtn.disabled = true;
+                getAllBtn.disabled = true;
+                simStartBtn.disabled = true;
+                simCompleteBtn.disabled = true;
+                document.getElementById('clientId').textContent = '';
+            }
+        }
+
+        function connect() {
+            if (socket) {
+                socket.disconnect();
+            }
+
+            log('Attempting to connect to WebSocket server...', 'info');
+            socket = io();
+
+            socket.on('connect', function() {
+                log('Connected to WebSocket server', 'success');
+                updateConnectionStatus(true);
+            });
+
+            socket.on('disconnect', function() {
+                log('Disconnected from WebSocket server', 'warning');
+                updateConnectionStatus(false);
+                activeSubscriptions.clear();
+                updateSubscriptionDisplay();
+            });
+
+            socket.on('connection_status', function(data) {
+                clientId = data.client_id;
+                document.getElementById('clientId').textContent = `Client ID: ${clientId}`;
+                log(`Client ID assigned: ${clientId}`, 'info');
+            });
+
+            socket.on('task_status', function(data) {
+                log(`Task status received for ${data.config_name}`, 'info');
+                updateTaskDisplay(data.config_name, data.status);
+            });
+
+            socket.on('task_status_update', function(data) {
+                log(`Task update for ${data.config_name}: ${data.update.event || 'status change'}`, 'info');
+                updateTaskDisplayFromUpdate(data);
+            });
+
+            socket.on('all_tasks', function(data) {
+                log(`Received all tasks data (${Object.keys(data).length} configurations)`, 'info');
+                displayAllTasks(data);
+            });
+
+            socket.on('unsubscribed', function(data) {
+                log(`Unsubscribed from ${data.config_name}`, 'info');
+                activeSubscriptions.delete(data.config_name);
+                updateSubscriptionDisplay();
+            });
+
+            socket.on('error', function(data) {
+                log(`Error: ${data.message}`, 'error');
+            });
+
+            socket.on('connect_error', function(error) {
+                log(`Connection error: ${error}`, 'error');
+                updateConnectionStatus(false);
+            });
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+        }
+
+        function subscribeTask() {
+            const configName = document.getElementById('configName').value.trim();
+            if (!configName) {
+                alert('Please enter a config name');
+                return;
+            }
+
+            if (socket && socket.connected) {
+                socket.emit('subscribe_task', { config_name: configName });
+                activeSubscriptions.add(configName);
+                updateSubscriptionDisplay();
+                log(`Subscribing to task updates for ${configName}`, 'info');
+            }
+        }
+
+        function unsubscribeTask() {
+            const configName = document.getElementById('configName').value.trim();
+            if (!configName) {
+                alert('Please enter a config name');
+                return;
+            }
+
+            if (socket && socket.connected) {
+                socket.emit('unsubscribe_task', { config_name: configName });
+                log(`Unsubscribing from task updates for ${configName}`, 'info');
+            }
+        }
+
+        function getAllTasks() {
+            if (socket && socket.connected) {
+                socket.emit('get_all_tasks');
+                log('Requesting all task statuses', 'info');
+            }
+        }
+
+        function updateSubscriptionDisplay() {
+            const display = document.getElementById('activeSubscriptions');
+            if (activeSubscriptions.size === 0) {
+                display.textContent = 'None';
+            } else {
+                display.textContent = Array.from(activeSubscriptions).join(', ');
+            }
+        }
+
+        function updateTaskDisplay(configName, status) {
+            const container = document.getElementById('taskStatus');
+            let card = document.getElementById(`task-${configName}`);
+            
+            if (!card) {
+                card = document.createElement('div');
+                card.id = `task-${configName}`;
+                card.className = 'task-card';
+                container.appendChild(card);
+            }
+
+            const currentTask = status.current_task || 'None';
+            const taskStatus = status.status || 'unknown';
+            const lastTask = status.last_task || {};
+            const region = status.aws_current_region || 'N/A';
+
+            card.innerHTML = `
+                <h4>${configName}</h4>
+                <div class="task-info">
+                    <span><strong>Status:</strong> ${taskStatus}</span>
+                    <span><strong>Current Task:</strong> ${currentTask}</span>
+                    <span><strong>Region:</strong> ${region}</span>
+                    ${lastTask.task_type ? `<span><strong>Last Task:</strong> ${lastTask.task_type} (${lastTask.status || 'unknown'})</span>` : ''}
+                    ${lastTask.start_time ? `<span><strong>Started:</strong> ${lastTask.start_time}</span>` : ''}
+                    ${lastTask.end_time ? `<span><strong>Ended:</strong> ${lastTask.end_time}</span>` : ''}
+                </div>
+            `;
+        }
+
+        function updateTaskDisplayFromUpdate(data) {
+            const configName = data.config_name;
+            const update = data.update;
+            
+            // If we have a full status update, use the existing function
+            if (update.status) {
+                // Create a status object structure
+                const status = {
+                    status: update.status,
+                    current_task: update.event === 'task_started' ? update.task_type : null
+                };
+                updateTaskDisplay(configName, status);
+            }
+        }
+
+        function displayAllTasks(tasks) {
+            const container = document.getElementById('taskStatus');
+            container.innerHTML = ''; // Clear existing cards
+            
+            for (const [configName, status] of Object.entries(tasks)) {
+                updateTaskDisplay(configName, status);
+            }
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+
+        function simulateTaskStart() {
+            const configName = document.getElementById('simConfigName').value.trim() || 'aws01';
+            const taskType = document.getElementById('simTaskType').value.trim() || 'change_ip';
+            
+            if (socket && socket.connected) {
+                socket.emit('simulate_task_start', { 
+                    config_name: configName, 
+                    task_type: taskType 
+                });
+                log(`Simulating task start: ${taskType} for ${configName}`, 'info');
+            }
+        }
+
+        function simulateTaskComplete() {
+            const configName = document.getElementById('simConfigName').value.trim() || 'aws01';
+            
+            if (socket && socket.connected) {
+                socket.emit('simulate_task_complete', { 
+                    config_name: configName, 
+                    result: 'success' 
+                });
+                log(`Simulating task completion for ${configName}`, 'info');
+            }
+        }
+
+        // Initialize the interface
+        updateConnectionStatus(false);
+        log('WebSocket client initialized. Click Connect to start.', 'info');
+    </script>
+</body>
+</html>
